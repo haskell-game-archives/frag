@@ -1,0 +1,54 @@
+name: stack
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - '*'
+  schedule:
+    - cron: "00 15 * * *"
+
+jobs:
+  build:
+    name: ${{ matrix.os }} (${{ matrix.resolver }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, macos-10.15]
+        resolver: ["lts-14", "lts-15", "nightly"]
+        cache-version: ["2020-03-15"]
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: mstksg/setup-stack@v2
+
+    - name: Display stack version
+      run: stack --version
+
+    - name: Cache ~/.stack
+      uses: actions/cache@v1
+      with:
+        path: ~/.stack
+        key: ${{ runner.os }}-${{ matrix.resolver }}-${{ matrix.cache-version }}-stack
+
+    - name: Install libralies (linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y freeglut3-dev
+
+    - name: Install dependencies
+      env:
+        STACK_YAML: stack-${{ matrix.resolver }}.yaml
+      run: |
+        stack config set resolver ${{ matrix.resolver }}
+        stack test --only-dependencies
+
+    - name: Build
+      env:
+        STACK_YAML: stack-${{ matrix.resolver }}.yaml
+      run: |
+        stack test --fast
+        stack install --fast
