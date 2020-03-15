@@ -1,3 +1,6 @@
+![stack](https://github.com/haskell-game-archives/frag/workflows/stack/badge.svg)
+![cabal](https://github.com/haskell-game-archives/frag/workflows/cabal/badge.svg)
+
 ![GIF Preview](frag.gif)
 
 Author: Mun Hon Cheong (mhch295@cse.unsw.edu.au)
