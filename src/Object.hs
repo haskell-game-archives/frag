@@ -92,7 +92,7 @@ instance NFData ObsObjState where
   rnf !_ = ()
 
 isRay :: ObsObjState -> Bool
-isRay (OOSRay {}) = True
+isRay OOSRay {} = True
 isRay _ = False
 
 isCamera :: ObsObjState -> Bool
@@ -104,5 +104,5 @@ isAICube OOSAICube {} = True
 isAICube _ = False
 
 isProjectile :: ObsObjState -> Bool
-isProjectile OOSProjectile{} = True
+isProjectile OOSProjectile {} = True
 isProjectile _ = False

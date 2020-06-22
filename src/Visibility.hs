@@ -72,14 +72,14 @@ rayTest bsp (x, y, z) vec2@(_, _, _) =
       v1 = vectorAdd vec2 (vectorMult (x1 - x2, y1 - y2, z1 - z2) 45)
       v2 = vectorAdd vec2 (vectorMult (x1 + x2, y1 + y2, z1 + z2) 45)
       v3 = vectorAdd vec2 (vectorMult (- x1 - x2, - y1 - y2, - z1 - z2) 45)
-   in case (snd $ clipRay2 bsp vec2 (x, y, z) (0, 0, 0)) of
-        False -> True
-        _ -> case snd $ clipRay2 bsp v1 (x, y + 30, z) (0, 0, 0) of
-          False -> True
-          _ -> case snd $ clipRay2 bsp v2 (x, y + 30, z) (0, 0, 0) of
-            False -> True
-            _ -> (not (snd $ clipRay2 bsp v3 (x, y + 30, z) (0, 0, 0))
-                    || not (snd $ clipRay2 bsp v3 (x, y + 30, z) (0, 0, 0)))
+   in not (snd $ clipRay2 bsp vec2 (x, y, z) (0, 0, 0))
+        || ( not (snd $ clipRay2 bsp v1 (x, y + 30, z) (0, 0, 0))
+               || ( not (snd $ clipRay2 bsp v2 (x, y + 30, z) (0, 0, 0))
+                      || ( not (snd $ clipRay2 bsp v3 (x, y + 30, z) (0, 0, 0))
+                             || not (snd $ clipRay2 bsp v3 (x, y + 30, z) (0, 0, 0))
+                         )
+                  )
+           )
 
 createSphere :: Double -> CollisionType
 createSphere = SphereT
@@ -187,10 +187,10 @@ checkBrush' start end cType brush
             (brushSides brush)
      in case colout of
           Just (out, collided, step, grounded, startR, endR, newNorm) ->
-            (if startR < endR && startR > - 1 && out then
-                Just (collided, step, grounded, fixRatio startR, newNorm)
-             else
-                Nothing)
+            ( if startR < endR && startR > - 1 && out
+                then Just (collided, step, grounded, fixRatio startR, newNorm)
+                else Nothing
+            )
           _ -> Nothing
   | otherwise = Nothing
   where

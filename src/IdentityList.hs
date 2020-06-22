@@ -95,7 +95,7 @@ listToILA as = IL {ilNextKey = length as,
 
 appFunc :: [(ILKey -> a)] -> [ILKey] -> [a]
 appFunc [] _ = []
-appFunc (f:fs) (k:ks) = (f k):(appFunc fs ks)
+appFunc (f:fs) (k:ks) = f k : appFunc fs ks
 appFunc _ _ = []
 
 ------------------------------------------------------------------------------
@@ -119,7 +119,7 @@ elemsIL = map snd . ilAssocs
 ------------------------------------------------------------------------------
 
 deleteIL :: ILKey -> IL a -> IL a
-deleteIL k (IL {ilNextKey = nk, ilAssocs = kas}) =
+deleteIL k IL {ilNextKey = nk, ilAssocs = kas} =
     IL {ilNextKey = nk, ilAssocs = deleteHlp kas}
     where
         deleteHlp []                                                      = []
@@ -137,17 +137,17 @@ deleteIL k (IL {ilNextKey = nk, ilAssocs = kas}) =
 -- result element was derived.
 
 mapIL :: ((ILKey, a) -> b) -> IL a -> IL b
-mapIL f (IL {ilNextKey = nk, ilAssocs = kas}) =
+mapIL f IL {ilNextKey = nk, ilAssocs = kas} =
     IL {ilNextKey = nk, ilAssocs = [(k, f ka) | ka@(k,_) <- kas]}
 
 
 filterIL :: ((ILKey, a) -> Bool) -> IL a -> IL a
-filterIL p (IL {ilNextKey = nk, ilAssocs = kas}) =
+filterIL p IL {ilNextKey = nk, ilAssocs = kas} =
     IL {ilNextKey = nk, ilAssocs = filter p kas}
 
 
 mapFilterIL :: ((ILKey, a) -> Maybe b) -> IL a -> IL b
-mapFilterIL p (IL {ilNextKey = nk, ilAssocs = kas}) =
+mapFilterIL p IL {ilNextKey = nk, ilAssocs = kas} =
     IL {
            ilNextKey = nk,
            ilAssocs = [(k, b) | ka@(k, _) <- kas, Just b <- [p ka]]
@@ -163,14 +163,14 @@ lookupIL k il = lookup k (ilAssocs il)
 
 
 findIL :: ((ILKey, a) -> Bool) -> IL a -> Maybe a
-findIL p (IL {ilAssocs = kas}) = findHlp kas
+findIL p IL {ilAssocs = kas} = findHlp kas
     where
         findHlp []                       = Nothing
         findHlp (ka@(_, a) : ks) = if p ka then Just a else findHlp ks
 
 
 mapFindIL :: ((ILKey, a) -> Maybe b) -> IL a -> Maybe b
-mapFindIL p (IL {ilAssocs = kas}) = mapFindHlp kas
+mapFindIL p IL {ilAssocs = kas} = mapFindHlp kas
     where
         mapFindHlp []             = Nothing
         mapFindHlp (ka : ks) = case p ka of
@@ -179,8 +179,8 @@ mapFindIL p (IL {ilAssocs = kas}) = mapFindHlp kas
 
 
 findAllIL :: ((ILKey, a) -> Bool) -> IL a -> [a]
-findAllIL p (IL {ilAssocs = kas}) = [ a | ka@(_, a) <- kas, p ka ]
+findAllIL p IL {ilAssocs = kas} = [ a | ka@(_, a) <- kas, p ka ]
 
 
 mapFindAllIL:: ((ILKey, a) -> Maybe b) -> IL a -> [b]
-mapFindAllIL p (IL {ilAssocs = kas}) = [ b | ka <- kas, Just b <- [p ka] ]
+mapFindAllIL p IL {ilAssocs = kas} = [ b | ka <- kas, Just b <- [p ka] ]
