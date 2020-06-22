@@ -3,7 +3,7 @@
 module ObjectBehavior (aicube, camera) where
 
 import Camera
-import Data.Maybe (fromJust)
+import Data.Maybe
 import FRP.Yampa hiding (count)
 import IdentityList
 import MD3
@@ -346,7 +346,7 @@ camera cam _ _ iD =
                       >>> ( first
                               ( arr
                                   ( \(msgn, msgs, rtrigger) ->
-                                      case (isEvent rtrigger) of
+                                      case isEvent rtrigger of
                                         True -> ([], msgn)
                                         False -> ((getMsg0 msgs msgn), msgn)
                                   )
@@ -391,15 +391,11 @@ camera cam _ _ iD =
                       >>> ( first
                               ( arr
                                   ( \(currentHealth, hitEv) ->
-                                      case (isEvent hitEv) of
-                                        True ->
-                                          currentHealth
-                                            - ( realToFrac
-                                                  ((length (fromEvent hitEv)) * 3)
-                                              )
+                                      case isEvent hitEv of
+                                        True -> currentHealth - (realToFrac (length (fromEvent hitEv) * 3))
                                         False -> currentHealth
                                   )
-                                  >>> ((iPre 100) <<< identity)
+                                  >>> (iPre 100 <<< identity)
                               )
                               >>> arr
                                 ( \( currentHealth,
@@ -576,10 +572,7 @@ camera cam _ _ iD =
                        )
                      ) ->
                       ObjOutput
-                        { ooSpawnReq =
-                            ( trigger
-                                `tag` [(ray (cpos cam1) (viewPos cam1) iD)]
-                            ),
+                        { ooSpawnReq = (trigger `tag` [ray (cpos cam1) (viewPos cam1) iD]),
                           ooObsObjState =
                             OOSCamera
                               { newCam = cam4,
@@ -587,24 +580,15 @@ camera cam _ _ iD =
                                 health = currentHealth,
                                 ammo = 100,
                                 score = kills,
-                                cood =
-                                  case (isEvent rev) of
-                                    True ->
-                                      reverse $
-                                        map
-                                          getCoordFromMsg
-                                          (msgi2)
-                                    _ -> []
+                                cood = if isEvent rev then reverse $ map getCoordFromMsg msgi2 else []
                               },
                           ooKillReq = noEvent,
                           ooSendMessage =
-                            case (event2List msges) of
+                            case event2List msges of
                               [] -> noEvent
                               _ ->
-                                (Event ())
-                                  `tag` ( case ( findEnemies
-                                                   (event2List msges)
-                                               ) of
+                                Event ()
+                                  `tag` ( case findEnemies (event2List msges) of
                                             [] -> []
                                             _ ->
                                               [ toTargetPosition
@@ -633,35 +617,31 @@ getMsg0 ::
   Event [(ILKey, Message)] ->
   [(ILKey, Message)] ->
   [(ILKey, Message)]
-getMsg0 (ev) ls =
-  case (isEvent ev) of
-    True -> case ((findCoords (fromEvent ev)) ++ ls) of
-      x -> x
-    _ -> ls
+getMsg0 ev ls =
+  if isEvent ev
+    then (case findCoords (fromEvent ev) ++ ls of x -> x)
+    else ls
 
 findKills :: [(ILKey, Message)] -> [ILKey]
-findKills ((k, EnemyDown) : kmsgs) = k : (findKills kmsgs)
-findKills ((_, _) : kmsgs) = (findKills kmsgs)
+findKills ((k, EnemyDown) : kmsgs) = k : findKills kmsgs
+findKills ((_, _) : kmsgs) = findKills kmsgs
 findKills [] = []
 
 findEnemies :: [(ILKey, Message)] -> [ILKey]
-findEnemies ((k, PlayerLockedOn) : kmsgs) = k : (findEnemies kmsgs)
-findEnemies ((_, _) : kmsgs) = (findEnemies kmsgs)
+findEnemies ((k, PlayerLockedOn) : kmsgs) = k : findEnemies kmsgs
+findEnemies ((_, _) : kmsgs) = findEnemies kmsgs
 findEnemies [] = []
 
-toTargetPosition ::
-  ILKey -> Vec3 -> ILKey -> (ILKey, (ILKey, Message))
-toTargetPosition iD position contact =
-  (contact, (iD, TargetPosition position))
+toTargetPosition :: ILKey -> Vec3 -> ILKey -> (ILKey, (ILKey, Message))
+toTargetPosition iD position contact = (contact, (iD, TargetPosition position))
 
 findCoords :: [(ILKey, Message)] -> [(ILKey, Message)]
-findCoords ((k, Coord x) : kmsgs) =
-  (k, Coord x) : (findCoords kmsgs)
+findCoords ((k, Coord x) : kmsgs) = (k, Coord x) : findCoords kmsgs
 findCoords ((_, _) : kmsgs) = findCoords kmsgs
 findCoords [] = []
 
 getCoordFromMsg :: (ILKey, Message) -> Vec3
-getCoordFromMsg (_, (Coord xyz)) = xyz
+getCoordFromMsg (_, Coord xyz) = xyz
 getCoordFromMsg _ = (0, 0, 0)
 
 aicube ::
@@ -686,9 +666,9 @@ aicube (x, y, z) size waypoints modelname (ua, la) iD =
       >>> ( first
               ( arr
                   ( \hitList ->
-                      case (isEvent hitList) of
-                        True -> getFire (snd (head (fromEvent hitList)))
-                        _ -> Nothing
+                      if isEvent hitList
+                        then getFire (snd (head (fromEvent hitList)))
+                        else Nothing
                   )
                   >>> (iPre Nothing <<< identity)
               )
@@ -697,7 +677,7 @@ aicube (x, y, z) size waypoints modelname (ua, la) iD =
                     (hitSource, (enemySighted, hitList, hitSource, oi, t))
                 )
           )
-      >>> ( ( first (arr (\hitSource -> (hitSource /= Nothing)) >>> edge)
+      >>> ( ( first (arr isJust >>> edge)
                 >>> loop
                   ( arr
                       ( \( (hitev1, (enemySighted, hitList, hitSource, oi, t)),
@@ -709,12 +689,8 @@ aicube (x, y, z) size waypoints modelname (ua, la) iD =
                       )
                       >>> ( first
                               ( arr
-                                  ( \(currentHealth, hitList) ->
-                                      case (isEvent hitList) of
-                                        True -> currentHealth - (3)
-                                        False -> currentHealth
-                                  )
-                                  >>> ((iPre 100) <<< identity)
+                                  (\(currentHealth, hitList) -> if isEvent hitList then currentHealth - 3 else currentHealth)
+                                  >>> (iPre 100 <<< identity)
                               )
                               >>> arr
                                 ( \(currentHealth, (enemySighted, hitSource, hitev1, oi, t)) ->
@@ -732,7 +708,7 @@ aicube (x, y, z) size waypoints modelname (ua, la) iD =
                     )
                 )
           )
-      >>> ( ( first (arr (\currentHealth -> (currentHealth <= 0)) >>> edge)
+      >>> ( ( first (arr (<= 0) >>> edge)
                 >>> loop
                   ( arr
                       ( \( ( hitev,
@@ -745,12 +721,7 @@ aicube (x, y, z) size waypoints modelname (ua, la) iD =
                             )
                       )
                       >>> ( first
-                              ( arr
-                                  ( \(hitev, isDead) ->
-                                      case (isEvent hitev) of
-                                        True -> True
-                                        _ -> isDead
-                                  )
+                              ( arr (\(hitev, isDead) -> isEvent hitev || isDead)
                                   >>> (iPre False <<< identity)
                               )
                               >>> arr
@@ -894,9 +865,9 @@ aicube (x, y, z) size waypoints modelname (ua, la) iD =
                       >>> ( first
                               ( arr
                                   ( \(enemySighted, targ) ->
-                                      case isEvent enemySighted of
-                                        True -> cpos (oldCam (snd (head (fromEvent enemySighted))))
-                                        False -> targ
+                                      if isEvent enemySighted
+                                        then cpos (oldCam (snd (head (fromEvent enemySighted))))
+                                        else targ
                                   )
                                   >>> (iPre (0, 0, 0) <<< identity)
                               )
@@ -998,11 +969,11 @@ aicube (x, y, z) size waypoints modelname (ua, la) iD =
       >>> ( first
               ( arr
                   ( \(isDead, msgs) ->
-                      case isEvent msgs && not isDead of
-                        True -> case getTargetPosition (fromEvent msgs) of
-                          Just _ -> True
-                          _ -> False
-                        _ -> False
+                      (isEvent msgs && not isDead)
+                        && ( case getTargetPosition (fromEvent msgs) of
+                               Just _ -> True
+                               _ -> False
+                           )
                   )
                   >>> edge
               )
@@ -1042,13 +1013,11 @@ aicube (x, y, z) size waypoints modelname (ua, la) iD =
       >>> ( first
               ( arr
                   ( \(isDead, msgs) ->
-                      if isEvent msgs && not isDead
-                        then
-                          ( case getTargetPosition2 (fromEvent msgs) of
-                              Just _ -> True
-                              _ -> False
-                          )
-                        else False
+                      (isEvent msgs && not isDead)
+                        && ( case getTargetPosition2 (fromEvent msgs) of
+                               Just _ -> True
+                               _ -> False
+                           )
                   )
                   >>> edge
               )
