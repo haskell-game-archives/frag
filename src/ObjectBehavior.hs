@@ -1739,10 +1739,10 @@ turnToFaceTarget (currentPos, initialAngle) =
                            ) ->
                             let angularVP =
                                   case (abs (ptch - targetPitch) > 2) of
-                                    True -> case (targetPitch < ptch) of
+                                    True -> case targetPitch < ptch of
                                       True -> - 90
                                       _ -> 90
-                                    False -> (targetPitch - ptch)
+                                    False -> targetPitch - ptch
                              in ( angularVP,
                                   ( angle,
                                     enemySighted,
@@ -1818,7 +1818,7 @@ turnToFaceTarget (currentPos, initialAngle) =
                       )
                 )
           )
-      >>> ( first (arr (\ev1 -> (isEvent ev1)) >>> ((iPre noEvent) <<< edge))
+      >>> ( first (arr (\ev1 -> isEvent ev1) >>> (iPre noEvent <<< edge))
               >>> arr
                 ( \( attack,
                      ( angle,
@@ -1847,7 +1847,7 @@ turnToFaceTarget (currentPos, initialAngle) =
                         True -> attack1
                         False -> stand
                   )
-                  >>> ((iPre stand) <<< identity)
+                  >>> (iPre stand <<< identity)
               )
               >>> arr
                 ( \(torsoAnim, (angle, attack, legsAnim, ox, oy, oz, ptch, yVel)) ->
@@ -1869,105 +1869,101 @@ followWayPoints ::
     (ObjInput, Event (), Event ())
     (Vec3, Vec3, Double, Double, Event (), (Int, Int))
 followWayPoints (x, y, z) waypoints =
-  ( arr
-      ( \(oi, ev1, ev2) ->
-          let gi = oiGameInput oi
-           in let clippedPos = oiCollisionPos oi
-               in let grounded = oiOnLand oi
-                   in (clippedPos, (ev1, ev2, gi, grounded, oi))
-      )
-      >>> ( first (iPre (x, y, z) <<< identity)
-              >>> arr
-                ( \((ox, oy, oz), (ev1, ev2, gi, grounded, oi)) ->
-                    (gi, (ev1, ev2, gi, grounded, oi, ox, oy, oz))
-                )
-          )
-      >>> ( first getT
-              >>> arr
-                ( \(_, (ev1, ev2, gi, grounded, oi, ox, oy, oz)) ->
-                    (gi, (ev1, ev2, gi, grounded, oi, ox, oy, oz))
-                )
-          )
-      >>> ( first getDt
-              >>> arr
-                ( \(dt, (ev1, ev2, gi, grounded, oi, ox, oy, oz)) ->
-                    ((dt, gi, grounded), (dt, ev1, ev2, oi, ox, oy, oz))
-                )
-          )
-      >>> ( first
-              ( arr (\(dt, gi, grounded) -> (grounded, gi, dt))
-                  >>> (iPre 0 <<< falling)
+  arr
+    ( \(oi, ev1, ev2) ->
+        let gi = oiGameInput oi
+         in let clippedPos = oiCollisionPos oi
+             in let grounded = oiOnLand oi
+                 in (clippedPos, (ev1, ev2, gi, grounded, oi))
+    )
+    >>> ( first (iPre (x, y, z) <<< identity)
+            >>> arr
+              ( \((ox, oy, oz), (ev1, ev2, gi, grounded, oi)) ->
+                  (gi, (ev1, ev2, gi, grounded, oi, ox, oy, oz))
               )
-              >>> loop
-                ( arr
-                    ( \((yVel, (dt, ev1, ev2, oi, ox, oy, oz)), wpl) ->
-                        (wpl, (dt, ev1, ev2, oi, ox, oy, oz, yVel))
-                    )
-                    >>> ( first ((iPre (cycle waypoints)) <<< identity)
-                            >>> arr
-                              ( \(wps, (dt, ev1, ev2, oi, ox, oy, oz, yVel)) ->
-                                  let [wp1, wp2] = take 2 wps
-                                   in let (pastWp, (dx, _, dz)) = stepdist wp1 wp2 (ox, oy, oz) 100 dt
-                                       in ( pastWp,
-                                            (dx, dz, ev1, ev2, oi, ox, oy, oz, pastWp, wp2, wps, yVel)
-                                          )
-                              )
-                        )
-                    >>> ( first edge
-                            >>> arr
-                              ( \( pastEv,
-                                   (dx, dz, ev1, ev2, oi, ox, oy, oz, pastWp, wp2, wps, yVel)
-                                   ) ->
-                                    let angle = getAngle ((ox, oy, oz), (ox + dx, oy + yVel, oz + dz))
-                                     in let newPos = (ox + dx, oy + yVel, oz + dz)
-                                         in ( (angle, ev1, ev2, newPos, oi, pastEv, wp2),
-                                              (angle, newPos, ox, oy, oz, pastWp, wps)
-                                            )
-                              )
-                        )
-                    >>> ( first
-                            ( arr
-                                ( \(angle, ev1, ev2, newPos, oi, pastEv, wp2) ->
-                                    ( (oi, ev1, ev2),
-                                      pastEv `tag` turnToNextWp angle (getAngle (newPos, wp2))
-                                    )
-                                )
-                                >>> rSwitch
-                                  (constant (True, False, getAngle ((x, y, z), head waypoints)))
-                            )
-                            >>> arr
-                              ( \( (notturning, largeEnough, turnAngle),
-                                   (angle, newPos, ox, oy, oz, pastWp, wps)
-                                   ) ->
-                                    let wpl =
-                                          case pastWp of
-                                            True -> case (not largeEnough) of
-                                              True -> tail wps
-                                              _ -> if notturning then tail wps else wps
-                                            _ -> wps
-                                     in ( (angle, largeEnough, newPos, notturning, ox, oy, oz, turnAngle),
-                                          wpl
-                                        )
-                              )
-                        )
-                )
-          )
-      >>> arr
-        ( \(angle, largeEnough, newPos, notturning, ox, oy, oz, turnAngle) ->
-            let holdAngle =
-                  case (not largeEnough) of
-                    True -> angle
-                    _ -> case notturning of
-                      False -> turnAngle
-                      _ -> angle
-             in let legAnim =
-                      if not largeEnough then
-                          walk
-                      else
-                          (if notturning then walk else turn)
-                 in (newPos, (ox, oy, oz), holdAngle, 0, noEvent, (stand, legAnim))
         )
-  )
+    >>> ( first getT
+            >>> arr
+              ( \(_, (ev1, ev2, gi, grounded, oi, ox, oy, oz)) ->
+                  (gi, (ev1, ev2, gi, grounded, oi, ox, oy, oz))
+              )
+        )
+    >>> ( first getDt
+            >>> arr
+              ( \(dt, (ev1, ev2, gi, grounded, oi, ox, oy, oz)) ->
+                  ((dt, gi, grounded), (dt, ev1, ev2, oi, ox, oy, oz))
+              )
+        )
+    >>> ( first
+            ( arr (\(dt, gi, grounded) -> (grounded, gi, dt))
+                >>> (iPre 0 <<< falling)
+            )
+            >>> loop
+              ( arr
+                  ( \((yVel, (dt, ev1, ev2, oi, ox, oy, oz)), wpl) ->
+                      (wpl, (dt, ev1, ev2, oi, ox, oy, oz, yVel))
+                  )
+                  >>> ( first ((iPre (cycle waypoints)) <<< identity)
+                          >>> arr
+                            ( \(wps, (dt, ev1, ev2, oi, ox, oy, oz, yVel)) ->
+                                let [wp1, wp2] = take 2 wps
+                                 in let (pastWp, (dx, _, dz)) = stepdist wp1 wp2 (ox, oy, oz) 100 dt
+                                     in ( pastWp,
+                                          (dx, dz, ev1, ev2, oi, ox, oy, oz, pastWp, wp2, wps, yVel)
+                                        )
+                            )
+                      )
+                  >>> ( first edge
+                          >>> arr
+                            ( \( pastEv,
+                                 (dx, dz, ev1, ev2, oi, ox, oy, oz, pastWp, wp2, wps, yVel)
+                                 ) ->
+                                  let angle = getAngle ((ox, oy, oz), (ox + dx, oy + yVel, oz + dz))
+                                   in let newPos = (ox + dx, oy + yVel, oz + dz)
+                                       in ( (angle, ev1, ev2, newPos, oi, pastEv, wp2),
+                                            (angle, newPos, ox, oy, oz, pastWp, wps)
+                                          )
+                            )
+                      )
+                  >>> ( first
+                          ( arr
+                              ( \(angle, ev1, ev2, newPos, oi, pastEv, wp2) ->
+                                  ( (oi, ev1, ev2),
+                                    pastEv `tag` turnToNextWp angle (getAngle (newPos, wp2))
+                                  )
+                              )
+                              >>> rSwitch
+                                (constant (True, False, getAngle ((x, y, z), head waypoints)))
+                          )
+                          >>> arr
+                            ( \( (notturning, largeEnough, turnAngle),
+                                 (angle, newPos, ox, oy, oz, pastWp, wps)
+                                 ) ->
+                                  let wpl =
+                                        case pastWp of
+                                          True -> case (not largeEnough) of
+                                            True -> tail wps
+                                            _ -> if notturning then tail wps else wps
+                                          _ -> wps
+                                   in ( (angle, largeEnough, newPos, notturning, ox, oy, oz, turnAngle),
+                                        wpl
+                                      )
+                            )
+                      )
+              )
+        )
+    >>> arr
+      ( \(angle, largeEnough, newPos, notturning, ox, oy, oz, turnAngle) ->
+          let holdAngle =
+                case (not largeEnough) of
+                  True -> angle
+                  _ -> if notturning then angle else turnAngle
+           in let legAnim
+                    | not largeEnough = walk
+                    | notturning = walk
+                    | otherwise = turn
+               in (newPos, (ox, oy, oz), holdAngle, 0, noEvent, (stand, legAnim))
+      )
 
 turnToNextWp ::
   Double ->
@@ -1977,9 +1973,7 @@ turnToNextWp currentangle nextAngle =
   ( ( ( arr
           ( \(_, _, lev) ->
               let targetAngle =
-                    case ( abs (currentangle - nextAngle)
-                             < abs (currentangle - (nextAngle + 360))
-                         ) of
+                    case abs (currentangle - nextAngle) < abs (currentangle - (nextAngle + 360)) of
                       True -> nextAngle
                       False -> nextAngle + 360
                in (lev, targetAngle)
@@ -1988,9 +1982,9 @@ turnToNextWp currentangle nextAngle =
             ( arr
                 ( \((lev, targetAngle), angle) ->
                     let angularV =
-                          case abs (angle - targetAngle) > 3 of
-                            True -> if angle < targetAngle then 360 else (- 360)
-                            False -> targetAngle - angle
+                          if abs (angle - targetAngle) > 3
+                            then (if angle < targetAngle then 360 else (- 360))
+                            else targetAngle - angle
                      in (angularV, (lev, targetAngle))
                 )
                 >>> ( first ((currentangle +) ^<< integral)
@@ -2018,7 +2012,7 @@ turnToNextWp currentangle nextAngle =
           )
       >>> arr
         ( \(ret, (angle, targetAngle)) ->
-            (ret, (abs (currentangle - targetAngle) > 30), angle)
+            (ret, abs (currentangle - targetAngle) > 30, angle)
         )
   )
 
@@ -2039,13 +2033,12 @@ playDead ::
     (ObjInput, Event (), Event ())
     (Vec3, Vec3, Double, Double, Event (), (Int, Int))
 playDead start angle =
-  ( arr (\(_, ev1, _) -> ev1)
-      >>> (notYet >>> arr (\ev -> ((), ev `tag` constant dead1)))
-      >>> ( drSwitch (constant death1)
-              >>> arr
-                (\death -> (start, start, angle, 0, noEvent, (death, death)))
-          )
-  )
+  arr (\(_, ev1, _) -> ev1)
+    >>> (notYet >>> arr (\ev -> ((), ev `tag` constant dead1)))
+    >>> ( drSwitch (constant death1)
+            >>> arr
+              (\death -> (start, start, angle, 0, noEvent, (death, death)))
+        )
 
 getAngle :: (Vec3, Vec3) -> Double
 getAngle ((x, _, z), (vx, _, vz)) =
@@ -2063,76 +2056,73 @@ getVertAngle ((x, y, z), (vx, vy, vz)) =
 
 updateAnimSF :: AnimState -> SF (Double, Int) (Event (), AnimState)
 updateAnimSF iAnim =
-  ( loop
-      ( arr
-          ( \((tme, animIndex), anim2) ->
-              ((anim2, animIndex, tme), animIndex)
-          )
-          >>> ( first
-                  ( arr (\(anim2, animIndex, tme) -> (animIndex, tme, anim2))
-                      >>> (iPre (False, iAnim) <<< arr updateAnim)
-                  )
-                  >>> arr
-                    ( \((hasLooped, anim2), animIndex) ->
-                        ((anim2, animIndex, hasLooped), anim2)
-                    )
-              )
-      )
-      >>> arr
-        ( \(anim2, animIndex, hasLooped) ->
-            ( if hasLooped then
-                  (if animIndex == dead1 then
-                      (noEvent, anim2)
-                  else
-                      (Event (), anim2))
-              else
-                  (noEvent, anim2)
-            )
+  loop
+    ( arr
+        ( \((tme, animIndex), anim2) ->
+            ((anim2, animIndex, tme), animIndex)
         )
-  )
+        >>> ( first
+                ( arr (\(anim2, animIndex, tme) -> (animIndex, tme, anim2))
+                    >>> (iPre (False, iAnim) <<< arr updateAnim)
+                )
+                >>> arr
+                  ( \((hasLooped, anim2), animIndex) ->
+                      ((anim2, animIndex, hasLooped), anim2)
+                  )
+            )
+    )
+    >>> arr
+      ( \(anim2, animIndex, hasLooped) ->
+          ( if hasLooped
+              then
+                ( if animIndex == dead1
+                    then (noEvent, anim2)
+                    else (Event (), anim2)
+                )
+              else (noEvent, anim2)
+          )
+      )
 
 moves :: SF (Double, Camera) Camera
 moves =
-  ( arr
-      ( \(speed, cam) ->
-          let (x, y, z) = cpos cam
-              (vpx, vpy, vpz) = viewPos cam
-              strafevec =
-                normalise
-                  (crossProd (vectorSub (viewPos cam) (cpos cam)) (upVec cam))
-              (vx, _, vz) = normalise (crossProd (upVec cam) strafevec)
-              newx = (vx * speed)
-              newz = (vz * speed)
-              newvx = (vx * speed)
-              newvz = (vz * speed)
-           in Camera
-                { cpos = (x + newx, y, z + newz),
-                  viewPos = (vpx + newvx, vpy, vpz + newvz),
-                  upVec = upVec cam
-                }
-      )
-  )
+  arr
+    ( \(speed, cam) ->
+        let (x, y, z) = cpos cam
+            (vpx, vpy, vpz) = viewPos cam
+            strafevec =
+              normalise
+                (crossProd (vectorSub (viewPos cam) (cpos cam)) (upVec cam))
+            (vx, _, vz) = normalise (crossProd (upVec cam) strafevec)
+            newx = (vx * speed)
+            newz = (vz * speed)
+            newvx = (vx * speed)
+            newvz = (vz * speed)
+         in Camera
+              { cpos = (x + newx, y, z + newz),
+                viewPos = (vpx + newvx, vpy, vpz + newvz),
+                upVec = upVec cam
+              }
+    )
 
 strafes :: SF (Double, Camera) Camera
 strafes =
-  ( arr
-      ( \(speed, cam) ->
-          let (sx, _, sz) =
-                normalise
-                  (crossProd (vectorSub (viewPos cam) (cpos cam)) (upVec cam))
-              (x, y, z) = cpos cam
-              (vx, vy, vz) = viewPos cam
-              newx = (sx * speed)
-              newz = (sz * speed)
-              newvx = (sx * speed)
-              newvz = (sz * speed)
-           in Camera
-                { cpos = (x + newx, y, z + newz),
-                  viewPos = (vx + newvx, vy, vz + newvz),
-                  upVec = upVec cam
-                }
-      )
-  )
+  arr
+    ( \(speed, cam) ->
+        let (sx, _, sz) =
+              normalise
+                (crossProd (vectorSub (viewPos cam) (cpos cam)) (upVec cam))
+            (x, y, z) = cpos cam
+            (vx, vy, vz) = viewPos cam
+            newx = (sx * speed)
+            newz = (sz * speed)
+            newvx = (sx * speed)
+            newvz = (sz * speed)
+         in Camera
+              { cpos = (x + newx, y, z + newz),
+                viewPos = (vx + newvx, vy, vz + newvz),
+                upVec = upVec cam
+              }
+    )
 
 movementKS :: Double -> SF GameInput Double
 movementKS speed =
@@ -2150,17 +2140,16 @@ movementKS speed =
 
 strafeKS :: Double -> SF GameInput Double
 strafeKS speed =
-  ( keyStat
-      >>> loop
-        ( arr (uncurry nextSpeed)
-            >>> ((iPre 0 <<< identity) >>> arr (\v -> (v, v)))
-        )
-  )
+  keyStat
+    >>> loop
+      ( arr (uncurry nextSpeed)
+          >>> ((iPre 0 <<< identity) >>> arr (\v -> (v, v)))
+      )
   where
     nextSpeed key v
       | key == Event ('d', True) = speed
       | key == Event ('a', True) = - speed
-      | (key == Event ('d', False) || key == Event ('a', False)) = 0
+      | key == Event ('d', False) || key == Event ('a', False) = 0
       | otherwise = v
 
 fallingp :: SF (Bool, GameInput) Double

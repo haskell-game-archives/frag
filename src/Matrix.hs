@@ -71,17 +71,17 @@ normalise a = vectorMult a (sqrt (1 / len a))
     len (va, vb, vc) = va * va + vb * vb + vc * vc
 
 -- Makes a Vertex3 (GLdouble) from a Vec3
-vert :: Vec3 -> Vertex3 (GLdouble)
+vert :: Vec3 -> Vertex3 GLdouble
 vert (x, y, z) = Vertex3 x y z
 
 -- Makes a TexCoord2 (GLdouble) from a Vec3
-coord :: (Double, Double) -> TexCoord2 (GLdouble)
+coord :: (Double, Double) -> TexCoord2 GLdouble
 coord (x, y) = TexCoord2 x y
 
 -- Makes a Vector3 (GLdouble) from a Vec3
-vect :: Vec3 -> Vector3 (GLdouble)
+vect :: Vec3 -> Vector3 GLdouble
 vect (x, y, z) = Vector3 x y z
 
 -- Makes a Normal3 (GLdouble) from a Vec3
-norm3 :: Vec3 -> Normal3 (GLdouble)
+norm3 :: Vec3 -> Normal3 GLdouble
 norm3 (x, y, z) = Normal3 x y z

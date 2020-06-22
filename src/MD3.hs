@@ -60,7 +60,6 @@ import Foreign
 import Foreign.C.String
 import Foreign.C.Types
 import Foreign.Marshal.Array
-import Foreign.Storable
 import Graphics.UI.GLUT
 import Quaternion
 import System.IO hiding (withBinaryFile)
@@ -398,7 +397,7 @@ drawModel (model, stateRef) = do
   --clientState VertexArray            $= Disabled
   --clientState TextureCoordArray $= Disabled
   animState <- readIORef stateRef
-  mapM (drawObject animState) (modelObjects model)
+  _ <- mapM (drawObject animState) (modelObjects model)
   let currentTag = (tags model) ! (currentFrame animState)
   let nextTag = (tags model) ! (nextFrame animState)
   aux <- readIORef (auxFunc model)
@@ -498,7 +497,7 @@ convertToVertArray t cs ns arr ind limit
 readMD3Header :: Handle -> IO MD3Header
 readMD3Header handle = do
   buf <- mallocBytes 108
-  hGetBuf handle buf 108
+  _ <- hGetBuf handle buf 108
   fID <- getString buf 4
   ver <- peek (plusPtr (castPtr buf :: Ptr CInt) 4)
   mfilename <- getString (plusPtr buf 8) 68
@@ -525,7 +524,7 @@ readMD3Header handle = do
 readMD3Skin :: FilePath -> IO [(String, String)]
 readMD3Skin filepath = withBinaryFile filepath $ \handle -> do
   contents <- hGetContents handle
-  evaluate $ force contents
+  _ <- evaluate $ force contents
   let filteredStr = (words (replace contents))
   let files = findfiles (stripTags filteredStr)
   case (files == []) of
@@ -544,7 +543,7 @@ stripTags (s : ss)
 readMD3Shader :: FilePath -> IO [String]
 readMD3Shader filepath = withBinaryFile filepath $ \handle -> do
   contents <- hGetContents handle
-  evaluate $ force contents
+  _ <- evaluate $ force contents
   let filteredStr = (words (replace contents))
   let files = fmap stripExt filteredStr
   case (files == []) of
@@ -610,7 +609,7 @@ readModel modelname weaponModel = do
           ]
       )
       ("models/players/" ++ modelname ++ "/")
-  get elapsedTime
+  _ <- get elapsedTime
   weaponAS <- noAnims
   headAS <- noAnims
   (upperanims, loweranims) <-
@@ -688,7 +687,7 @@ readMD3 ::
   IO MD3Model
 readMD3 filePath hashtable lns = withBinaryFile filePath $ \handle -> do
   header <- readMD3Header handle
-  readBones handle header
+  _ <- readBones handle header
   tag <- readTags handle header
   objs <- readMeshes handle header hashtable
   let splittedTags = splitTags (numTags header) tag
@@ -751,8 +750,8 @@ readWeapon filePath shader = withBinaryFile filePath $ \handle -> do
   header <- readMD3Header handle
   weaponTex <- (readMD3Shader shader)
   texObj <- mapM getAndCreateTexture (fmap ("tga/models/weapons/" ++) weaponTex)
-  readBones handle header
-  readTags handle header
+  _ <- readBones handle header
+  _ <- readTags handle header
   hash1 <- HT.fromList []
   objs <- readMeshes handle header hash1
   let objs2 = fmap attachTex (zip texObj objs)
@@ -814,7 +813,7 @@ readMeshData handle posn meshesLeft hashTable
   | meshesLeft <= 0 = return []
   | otherwise = do
     header <- readMD3MeshHeader handle
-    readSkins handle header
+    _ <- readSkins handle header
     faces <- readFaces handle posn header
     texcoords <- readTexCoords handle posn header
     vertices <- readVertices handle posn header
@@ -944,7 +943,7 @@ readVertices ::
 readVertices handle posn header = do
   hSeek handle AbsoluteSeek (posn + (fromIntegral (vertexStart header)))
   buf <- mallocBytes ((numMeshFrames header) * (numVertices header) * 8)
-  hGetBuf handle buf ((numMeshFrames header) * (numVertices header) * 8)
+  _ <- hGetBuf handle buf ((numMeshFrames header) * (numVertices header) * 8)
   let ptrs = getPtrs buf ((numMeshFrames header) * (numVertices header)) 8
   triangles <- mapM readVertex ptrs
   free buf
@@ -967,7 +966,7 @@ readTexCoords :: Handle -> Integer -> MD3MeshHeader -> IO [MD3TexCoord]
 readTexCoords handle posn header = do
   hSeek handle AbsoluteSeek (posn + (fromIntegral (uvStart header)))
   buf <- mallocBytes ((numVertices header) * 8)
-  hGetBuf handle buf ((numVertices header) * 8)
+  _ <- hGetBuf handle buf ((numVertices header) * 8)
   let ptrs = getPtrs buf (numVertices header) 8
   texcoords <- mapM readTexCoord ptrs
   free buf
@@ -983,9 +982,9 @@ readTexCoord ptr = do
 
 readFaces :: Handle -> Integer -> MD3MeshHeader -> IO [MD3Face]
 readFaces handle posn header = do
-  hSeek handle AbsoluteSeek (posn + (fromIntegral (triStart header)))
+  hSeek handle AbsoluteSeek (posn + fromIntegral (triStart header))
   buf <- mallocBytes ((numTriangles header) * 12)
-  hGetBuf handle buf ((numTriangles header) * 12)
+  _ <- hGetBuf handle buf ((numTriangles header) * 12)
   let ptrs = getPtrs buf (numTriangles header) 12
   faces <- mapM readFace ptrs
   free buf
@@ -1002,7 +1001,7 @@ readFace ptr = do
 readSkins :: Handle -> MD3MeshHeader -> IO [String]
 readSkins handle header = do
   buf <- mallocBytes ((numSkins header) * 68)
-  hGetBuf handle buf ((numSkins header) * 68)
+  _ <- hGetBuf handle buf ((numSkins header) * 68)
   let skinPtrs = getPtrs buf (numSkins header) 68
   skins <- mapM readSkin skinPtrs
   free buf
@@ -1019,7 +1018,7 @@ readSkin buf = do
 readMD3MeshHeader :: Handle -> IO MD3MeshHeader
 readMD3MeshHeader handle = do
   buf <- mallocBytes 108
-  hGetBuf handle buf 108
+  _ <- hGetBuf handle buf 108
   mID <- getString buf 4
   meshName <- getString (plusPtr buf 4) 68
   [i1, i2, i3, i4, i5, i6, i7, i8, i9] <- getInts (plusPtr buf 72) 9
@@ -1045,7 +1044,7 @@ readMD3MeshHeader handle = do
 readTags :: Handle -> MD3Header -> IO [MD3Tag]
 readTags handle header = do
   buf <- mallocBytes (112 * (numFrames header) * (numTags header))
-  hGetBuf handle buf (112 * (numFrames header) * (numTags header))
+  _ <- hGetBuf handle buf (112 * (numFrames header) * (numTags header))
   let ptrs = getPtrs buf ((numFrames header) * (numTags header)) 112
   tgs <- mapM readTag ptrs
   free buf
@@ -1069,7 +1068,7 @@ readTag buf = do
 readBones :: Handle -> MD3Header -> IO [MD3Bone]
 readBones handle header = do
   buf <- mallocBytes (56 * (numFrames header))
-  hGetBuf handle buf (56 * (numFrames header))
+  _ <- hGetBuf handle buf (56 * (numFrames header))
   let ptrs = getPtrs buf (numFrames header) 56
   bones <- mapM readBone ptrs
   free buf

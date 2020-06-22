@@ -1,5 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
-
 module IdentityList
   ( ILKey, -- Identity-list key type
     IL, -- Identity-list, abstract. Instance of functor.

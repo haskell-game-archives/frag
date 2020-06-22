@@ -55,7 +55,7 @@ sphereSphere (x1, y1, z1) (x2, y2, z2) rad1 rad2 =
 
 -- tests if a point lies within a sphere
 spherePoint :: Vec3 -> Vec3 -> Double -> Bool
-spherePoint (x1, y1, z1) (x2, y2, z2) rad = sqrt $ ((x1 - x2) * (x1 - x2)) + ((y1 - y2) * (y1 - y2)) + ((z1 - z2) * (z1 - z2)) <= rad
+spherePoint (x1, y1, z1) (x2, y2, z2) rad = (sqrt $ ((x1 - x2) * (x1 - x2)) + ((y1 - y2) * (y1 - y2)) + ((z1 - z2) * (z1 - z2))) <= rad
 
 -- test if a point lies in an AABB
 pointBox :: Vec3 -> Vec3 -> Vec3 -> Bool

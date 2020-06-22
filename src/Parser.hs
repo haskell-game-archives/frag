@@ -73,8 +73,8 @@ command = giCmd ^>> notYet
 gDt :: SF a (Double, Double)
 gDt =
   arr (const 1)
-      >>> (imIntegral 0 >>> arr (\t -> (t, t)))
-      >>> (first (iPre 0 <<< identity) >>> arr (\(lt, t) -> (t - lt + 0.005, t)))
+    >>> (imIntegral 0 >>> arr (\t -> (t, t)))
+    >>> (first (iPre 0 <<< identity) >>> arr (\(lt, t) -> (t - lt + 0.005, t)))
 
 -- Continuous parser feed back.
 cmdString :: SF GameInput String

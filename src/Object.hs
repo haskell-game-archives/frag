@@ -37,8 +37,8 @@ data ObjInput = ObjInput
 data ObjOutput = ObjOutput
   { ooObsObjState :: !ObsObjState,
     ooSendMessage :: !(Event [(ILKey, (ILKey, Message))]),
-    ooKillReq :: (Event ()),
-    ooSpawnReq :: (Event [ILKey -> Object])
+    ooKillReq :: Event (),
+    ooSpawnReq :: Event [ILKey -> Object]
   }
 
 data Message

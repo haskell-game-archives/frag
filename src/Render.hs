@@ -8,6 +8,7 @@ where
 
 import BSP
 import Camera
+import Control.Monad
 import qualified Data.HashTable.IO as HT
 import Data.IORef
 import Data.Maybe
@@ -41,7 +42,7 @@ renderHud gd playerState noos tme = do
   setUpOrtho $ do
     --show the framerate
     lastTime3 <- readIORef (lastDrawTime2 gd)
-    let dt = (realToFrac (tme - lastTime3) / 1000)
+    let dt = realToFrac (tme - lastTime3) / 1000
     color $ Color4 255 255 255 (255 :: GLubyte)
     printFonts' 0 464 (fonts gd) 1 $
       "framerate = " ++ show (truncate ((1 / dt) :: Double) :: Int)
