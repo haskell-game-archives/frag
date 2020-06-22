@@ -17,7 +17,7 @@ jobs:
       matrix:
         ghc: ["8.6.5", "8.8.3", "8.10.1"]
         cabal: ["3.2.0.0"]
-        cache-version: ["2020-06-23"]
+        cache-version: ["2020-06-23-1"]
 
     steps:
     - uses: actions/checkout@v2

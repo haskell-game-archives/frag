@@ -70,28 +70,28 @@ renderHud gd playerState noos tme = do
 
     --print a message if the player has eliminated all enemies
     color $ Color4 0 255 0 (255 :: GLubyte)
-    case ((score playerState) == (nems gd) && (nems gd) > 0) of
+    case (score playerState == nems gd && nems gd > 0) of
       True -> do
-        printFonts' 96 272 (fonts gd) 1 ("You've killed everybody! (You monster.)")
+        printFonts' 96 272 (fonts gd) 1 "You've killed everybody! (You monster.)"
       --printFonts' 248 256 (fonts gd) 1 ("Happy Now?")
       _ -> return ()
 
     --print a message if the player has died
-    case (health playerState <= 0) of
+    case health playerState <= 0 of
       True -> do
         color $ Color4 255 0 0 (255 :: GLubyte)
-        printFonts' 210 240 (fonts gd) 1 ("Oh, botheration. You died.")
+        printFonts' 210 240 (fonts gd) 1 "Oh, botheration. You died."
         color $ Color4 255 255 255 (255 :: GLubyte)
       _ -> return ()
 
     --render the health and score of the player with big fonts
     color $ Color4 255 255 255 (255 :: GLubyte)
-    printFonts' 4 50 (fonts gd) 1 ("health")
-    printFonts' 540 50 (fonts gd) 1 ("score")
+    printFonts' 4 50 (fonts gd) 1 "health"
+    printFonts' 540 50 (fonts gd) 1 "score"
     color $ Color4 232 192 0 (255 :: GLubyte)
-    case (health playerState > 0) of
+    case health playerState > 0 of
       True -> renderNum 4 1 (nbase gd) (truncate (health playerState))
-      False -> renderNum 4 1 (nbase gd) (0)
+      False -> renderNum 4 1 (nbase gd) 0
     color $ Color4 232 192 0 (255 :: GLubyte)
     renderNum 540 1 (nbase gd) (score playerState)
 
@@ -110,18 +110,18 @@ renderHud gd playerState noos tme = do
 --print a smiley representing the health of the player
 printLife :: (Maybe TextureObject, DisplayList) -> Int -> IO ()
 printLife font life
-  | life <= 0 = do printf ("(x_x)")
-  | life <= 19 = do printf ("(T_T)")
-  | life <= 19 = do printf ("(~_~)")
-  | life <= 39 = do printf ("(-_-)")
-  | life <= 59 = do printf ("(o_0)")
-  | life <= 79 = do printf ("(o_o)")
-  | otherwise = do printf ("(^_^)")
+  | life <= 0 = do printf "(x_x)"
+  | life <= 19 = do printf "(T_T)"
+  | life <= 19 = do printf "(~_~)"
+  | life <= 39 = do printf "(-_-)"
+  | life <= 59 = do printf "(o_0)"
+  | life <= 79 = do printf "(o_o)"
+  | otherwise = do printf "(^_^)"
   where
-    printf str = printFonts' 292 32 font 1 (str)
+    printf str = printFonts' 292 32 font 1 str
 
 renderObjects ::
-  IORef (Camera) ->
+  IORef Camera ->
   HT.BasicHashTable String Model ->
   Frustum ->
   BSPMap ->
@@ -147,7 +147,7 @@ renderGun cam mdels = do
     translate (Vector3 x (y + 30) (z :: Double))
     let angle2 =
           acos $ dotProd (normalise $ vectorSub (vx, 0, vz) (x, 0, z)) (1, 0, 0)
-    case (vz > z) of
+    case vz > z of
       False -> rotate ((angle2 * 180 / pi) :: GLdouble) (Vector3 0 1 0)
       True -> rotate ((360 - (angle2 * 180 / pi)) :: GLdouble) (Vector3 0 1 0)
     let angle1 =
@@ -255,7 +255,7 @@ renderEnemy
             -- a third check to see if a ray can be fired to
             --the objects position without colliding
             let rayVis = rayTest bspmap (cpos cam) (x, y, z)
-            case (rayVis) of
+            case rayVis of
               False -> return ()
               _ -> do
                 unsafePreservingMatrix $ do
