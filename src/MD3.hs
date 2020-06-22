@@ -398,8 +398,8 @@ drawModel (model, stateRef) = do
   --clientState TextureCoordArray $= Disabled
   animState <- readIORef stateRef
   _ <- mapM (drawObject animState) (modelObjects model)
-  let currentTag = (tags model) ! (currentFrame animState)
-  let nextTag = (tags model) ! (nextFrame animState)
+  let currentTag = tags model ! (currentFrame animState)
+  let nextTag = tags model ! nextFrame animState
   aux <- readIORef (auxFunc model)
   aux2 <- readIORef (auxFunc2 model)
   case aux2 of

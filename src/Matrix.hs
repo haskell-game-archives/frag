@@ -33,15 +33,15 @@ matrixVectorMult m v = mapTup (dotProd v) m
 
 -- As above, but arguments swapped
 matrixVectorMult2 :: Vec3 -> Mat3 -> Vec3
-matrixVectorMult2 v m = mapTup (dotProd v) m
+matrixVectorMult2 v = mapTup (dotProd v)
 
 -- Multiplies two 3*3 matrices
 matrixMult :: Mat3 -> Mat3 -> Mat3
-matrixMult m1 m2 = (mapTup (matrixVectorMult (transpose3 m1)) m2)
+matrixMult m1 = mapTup (matrixVectorMult (transpose3 m1))
 
 -- As above, but arguments swapped
 matrixMult2 :: Mat3 -> Mat3 -> Mat3
-matrixMult2 m2 m1 = (mapTup (matrixVectorMult (transpose3 m1)) m2)
+matrixMult2 m2 m1 = mapTup (matrixVectorMult (transpose3 m1)) m2
 
 -- Adds two vectors
 vectorAdd :: Vec3 -> Vec3 -> Vec3

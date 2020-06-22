@@ -38,7 +38,6 @@ import qualified Data.Array.IO as IOArr hiding (newListArray, readArray)
 import qualified Data.Array.MArray as Arr (newListArray, readArray)
 import Data.IORef
 import Data.List
-import Data.Maybe
 import Data.Typeable
 import Foreign
 import Foreign.C.String
@@ -445,7 +444,7 @@ renderPatch face bsppatch = do
 -- reads a BSP file
 readBSP :: FilePath -> IO (IORef BSPMap)
 readBSP filePath = withBinaryFile filePath $ \handle -> do
-  readHeader handle
+  _ <- readHeader handle
   lumps <-
     mapM
       (readLump handle)
@@ -495,9 +494,9 @@ createBitset lumps = do
 readHeader :: Handle -> IO BSPHeader
 readHeader handle = do
   buf <- mallocBytes 4
-  hGetBuf handle buf 4
+  _ <- hGetBuf handle buf 4
   iD <- mapM (peekByteOff buf) [0 .. 3] :: IO [CChar]
-  hGetBuf handle buf cIntSize
+  _ <- hGetBuf handle buf cIntSize
   ver <- peek (castPtr buf :: Ptr CInt) :: IO CInt
   free buf
   return
@@ -512,9 +511,9 @@ readHeader handle = do
 readLump :: Handle -> Int -> IO BSPLump
 readLump handle _ = do
   buf <- mallocBytes cIntSize
-  hGetBuf handle buf cIntSize
+  _ <- hGetBuf handle buf cIntSize
   offs <- peek (castPtr buf :: Ptr CInt) :: IO CInt
-  hGetBuf handle buf cIntSize
+  _ <- hGetBuf handle buf cIntSize
   l <- peek (castPtr buf :: Ptr CInt) :: IO CInt
   free buf
   return
@@ -571,7 +570,7 @@ readPlanes handle lumps = do
   (offst, lngth) <- getLumpData (lumps !! kPlanes)
   hSeek handle AbsoluteSeek (fromIntegral offst)
   buf <- mallocBytes lngth
-  hGetBuf handle buf lngth
+  _ <- hGetBuf handle buf lngth
   let ptrs = getPtrs buf lngth 16
   planes <- mapM readPlane ptrs
   free buf
@@ -606,7 +605,7 @@ readLeaves handle lumps vertArrays indcs = do
   (offst, lngth) <- getLumpData (lumps !! kLeafs)
   hSeek handle AbsoluteSeek (fromIntegral offst)
   buf <- mallocBytes lngth
-  hGetBuf handle buf lngth
+  _ <- hGetBuf handle buf lngth
   let ptrs = getPtrs buf lngth 48
   nodes <-
     mapM (readLeaf leafFaceArray faceArray leafBrushArray brushArray) ptrs
@@ -738,7 +737,7 @@ readLeafFaces handle lumps = do
   (offst, lngth) <- getLumpData (lumps !! kLeafFaces)
   hSeek handle AbsoluteSeek (fromIntegral offst)
   buf <- mallocBytes lngth
-  hGetBuf handle buf lngth
+  _ <- hGetBuf handle buf lngth
   leaffaces <- getInts buf (lngth `div` 4)
   free buf
   return leaffaces
@@ -755,7 +754,7 @@ readBrushes handle lumps = do
   (offst, lngth) <- getLumpData (lumps !! kBrushes)
   hSeek handle AbsoluteSeek (fromIntegral offst)
   buf <- mallocBytes lngth
-  hGetBuf handle buf lngth
+  _ <- hGetBuf handle buf lngth
   let ptrs = getPtrs buf lngth 12
   brushes <- mapM (readBrush brushSideArray texInfoArray) ptrs
   free buf
@@ -788,7 +787,7 @@ readBrushSides handle lumps = do
   (offst, lngth) <- getLumpData (lumps !! kBrushSides)
   hSeek handle AbsoluteSeek (fromIntegral offst)
   buf <- mallocBytes lngth
-  hGetBuf handle buf lngth
+  _ <- hGetBuf handle buf lngth
   let ptrs = getPtrs buf lngth 8
   brushsides <- mapM (readBrushSide planeArray) ptrs
   free buf
@@ -814,7 +813,7 @@ readLeafBrushes handle lumps = do
   (offst, lngth) <- getLumpData (lumps !! kLeafBrushes)
   hSeek handle AbsoluteSeek (fromIntegral offst)
   buf <- mallocBytes lngth
-  hGetBuf handle buf lngth
+  _ <- hGetBuf handle buf lngth
   leafbrushes <- getInts buf (lngth `div` 4)
   free buf
   return leafbrushes
@@ -830,7 +829,7 @@ readVisData handle lumps = do
     _ -> do
       hSeek handle AbsoluteSeek (fromIntegral offst)
       buf <- mallocBytes lngth
-      hGetBuf handle buf lngth
+      _ <- hGetBuf handle buf lngth
       cInts <- peekArray 2 (castPtr buf :: Ptr CInt)
       let [numC, bytesPerC] = toInts cInts
       bitst <- peekArray (numC * bytesPerC) $ plusPtr (castPtr buf :: Ptr Word8) 8
@@ -904,7 +903,7 @@ readLightMap :: Handle -> Int -> IO TextureObject
 readLightMap handle offst = do
   hSeek handle AbsoluteSeek (fromIntegral offst)
   buf <- mallocBytes 49152 :: IO (Ptr Word8)
-  hGetBuf handle buf 49152
+  _ <- hGetBuf handle buf 49152
   mapM_ (adjustRGB buf 5.0) [0 .. (16384 - 1)]
   createLightmapTexture buf
 
@@ -962,7 +961,7 @@ readTexInfo :: Handle -> Int -> IO BSPTexInfo
 readTexInfo handle offst = do
   hSeek handle AbsoluteSeek (fromIntegral offst)
   buf <- mallocBytes 64 :: IO (Ptr CChar)
-  hGetBuf handle buf 64
+  _ <- hGetBuf handle buf 64
   str <- peekCAString buf
   hSeek handle AbsoluteSeek (fromIntegral offst + 64)
   let getCInt =
@@ -985,7 +984,7 @@ readIndices handle lumps = do
   (offst, lngth) <- getLumpData (lumps !! kIndices)
   hSeek handle AbsoluteSeek (fromIntegral offst)
   buf <- mallocBytes lngth
-  hGetBuf handle buf lngth
+  _ <- hGetBuf handle buf lngth
   indces <-
     mapM
       (peekElemOff (castPtr buf :: Ptr CInt))

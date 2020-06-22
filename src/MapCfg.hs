@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 -- MapCfg.hs; Mun Hon Cheong (mhch295@cse.unsw.edu.au) 2005
 
 {-
@@ -17,7 +19,6 @@ import Data.List (find)
 import Data.Maybe
 import IdentityList
 import MD3
-import Object
 import Object
 import ObjectBehavior
 import System.IO hiding (withBinaryFile)
@@ -78,8 +79,7 @@ getWeaponModel hash name = do
 
 readLines :: Handle -> IO [String]
 readLines handle = do
-  eof <- hIsEOF handle
-  case (eof) of
+  hIsEOF handle >>= \case
     False -> do
       line <- hGetLine handle
       lnes <- readLines handle
@@ -111,12 +111,12 @@ lines2ObjectCons str
 
 lines2LevelModels :: [String] -> [LevelModel]
 lines2LevelModels [] = []
-lines2LevelModels (str : strs) = (read str) : (lines2LevelModels strs)
+lines2LevelModels (str : strs) = read str : lines2LevelModels strs
 
 objectCons2IntermediateObjects :: ObjectConstructor -> IntermediateObject
 objectCons2IntermediateObjects (ConsCamera cam) =
   ICamera (camera cam)
-objectCons2IntermediateObjects c@(ConsAICube {}) =
+objectCons2IntermediateObjects c@ConsAICube {} =
   IAICube
     (aicube (startPosition c) (size c) (wayPoints c) (modlName c))
     (modlName c)
@@ -125,17 +125,14 @@ toCompleteObjects ::
   [(String, AnimState, AnimState)] ->
   [IntermediateObject] ->
   [ILKey -> Object]
-toCompleteObjects animList iobjs =
-  map (toCompleteObject animList) iobjs
+toCompleteObjects animList = map (toCompleteObject animList)
 
 toCompleteObject ::
   [(String, AnimState, AnimState)] ->
   IntermediateObject ->
   (ILKey -> Object)
-toCompleteObject animList (ICamera func) =
-  func animList []
-toCompleteObject animList (IAICube func modelname) =
-  func (findModelAnim modelname animList)
+toCompleteObject animList (ICamera func) = func animList []
+toCompleteObject animList (IAICube func modelname) = func (findModelAnim modelname animList)
 
 findModelAnim ::
   String ->
@@ -143,5 +140,4 @@ findModelAnim ::
   (AnimState, AnimState)
 findModelAnim name anms = (ua, la)
   where
-    (_, ua, la) =
-      fromJust $ find (\(x, _, _) -> (x == name)) anms
+    (_, ua, la) = fromJust $ find (\(x, _, _) -> x == name) anms

@@ -19,7 +19,6 @@ import Data.Array.IArray
 -- import Data.Array.MArray (newArray)
 import Data.Array.IO
 import Foreign hiding (newArray)
-import Foreign.Storable
 import Graphics.UI.GLUT (GLint, GLsizei)
 
 data BSPPatch = BSPPatch

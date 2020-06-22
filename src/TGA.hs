@@ -17,13 +17,12 @@ with its pixels upside down.
 
 module TGA where
 
-import Control.Exception (bracket)
 import Data.Word (Word8)
 import Foreign.Marshal.Alloc (free, mallocBytes)
 import Foreign.Marshal.Array (peekArray, pokeArray)
 import Foreign.Ptr (Ptr (), plusPtr)
 import Graphics.UI.GLUT -- (Size, PixelData, UnsignedByte, PixelFormat, RGBA, RGB)
-import System.IO (Handle, IOMode (ReadMode), hClose, hGetBuf, withBinaryFile)
+import System.IO (Handle, IOMode (ReadMode), hGetBuf, withBinaryFile)
 
 withBinaryFile' :: FilePath -> (Handle -> IO a) -> IO a
 withBinaryFile' filePath = withBinaryFile filePath ReadMode
@@ -34,9 +33,9 @@ readTga filePath =
   withBinaryFile' filePath $ \handle -> do
     buf <- mallocBytes 6 :: IO (Ptr Word8)
     --the first 12 bytes of the header aren't used
-    hGetBuf handle buf 6
-    hGetBuf handle buf 6
-    hGetBuf handle buf 6
+    _ <- hGetBuf handle buf 6
+    _ <- hGetBuf handle buf 6
+    _ <- hGetBuf handle buf 6
     header <- peekArray 6 buf
     let w1 = fromIntegral (header !! 1) * 256 :: Int
     let width = w1 + fromIntegral (head header)
@@ -46,7 +45,7 @@ readTga filePath =
     let numBytes = (bitspp `div` 8) * width * height
     --allocate memory for the image
     image <- mallocBytes numBytes
-    hGetBuf handle image numBytes
+    _ <- hGetBuf handle image numBytes
     --define whether the pixels are in RGB or RGBA format.
     pixelFormat <- getFormat (fromIntegral bitspp)
     free buf

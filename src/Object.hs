@@ -16,7 +16,7 @@ module Object
 where
 
 import Camera
-import Control.DeepSeq (NFData (..), force)
+import Control.DeepSeq (NFData (..))
 import FRP.Yampa (Event, SF)
 import IdentityList
 import MD3 (AnimState)

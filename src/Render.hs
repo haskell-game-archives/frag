@@ -11,7 +11,6 @@ import Camera
 import Control.Monad
 import qualified Data.HashTable.IO as HT
 import Data.IORef
-import Data.Maybe
 import Frustum
 import Graphics.Rendering.OpenGL
 import MD3

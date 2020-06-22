@@ -1,5 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
-
 -- Camera.hs; Mun Hon Cheong (mhch295@cse.unsw.edu.au) 2005
 
 -- Functions to manipulate a camera
