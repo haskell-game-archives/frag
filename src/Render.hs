@@ -22,16 +22,16 @@ import TextureFonts
 import Visibility
 
 data GameData = GameData
-  { gamemap :: IORef (BSPMap),
+  { gamemap :: IORef BSPMap,
     models :: HT.BasicHashTable String Model,
     textures :: HT.BasicHashTable String (Maybe TextureObject),
-    camera :: IORef (Camera),
-    lastDrawTime :: IORef (Int),
-    lastDrawTime2 :: IORef (Int),
-    hasReacted :: IORef (Bool),
+    camera :: IORef Camera,
+    lastDrawTime :: IORef Int,
+    lastDrawTime2 :: IORef Int,
+    hasReacted :: IORef Bool,
     fonts :: (Maybe TextureObject, DisplayList),
     nbase :: DisplayList,
-    lock :: IORef (Bool),
+    lock :: IORef Bool,
     fpsc :: IORef (Double, Double),
     fpss :: IORef (Double, Double, Double),
     nems :: !Int
@@ -43,10 +43,10 @@ renderHud gd playerState noos tme = do
   setUpOrtho $ do
     --show the framerate
     lastTime3 <- readIORef (lastDrawTime2 gd)
-    let dt = ((realToFrac (tme - lastTime3)) / 1000)
+    let dt = (realToFrac (tme - lastTime3) / 1000)
     color $ Color4 255 255 255 (255 :: GLubyte)
     printFonts' 0 464 (fonts gd) 1 $
-      "framerate = " ++ (show $ ((truncate ((1 / dt) :: Double)) :: Int))
+      "framerate = " ++ (show (truncate ((1 / dt) :: Double) :: Int))
 
     --print the player's score
     printFonts'
@@ -54,7 +54,7 @@ renderHud gd playerState noos tme = do
       448
       (fonts gd)
       1
-      ("ezpks = " ++ (show (score playerState)))
+      ("ezpks = " ++ show (score playerState))
 
     --print the position of the player
     let (q, w, e) = (cpos (oldCam playerState))
@@ -63,10 +63,10 @@ renderHud gd playerState noos tme = do
       432
       (fonts gd)
       1
-      ("position = " ++ (show ((truncate q :: Int), (truncate w :: Int), (truncate e :: Int))))
+      ("position = " ++ show (truncate q :: Int, truncate w :: Int, truncate e :: Int))
 
     --print the number of objects
-    printFonts' 0 416 (fonts gd) 1 ("No. of objs = " ++ (show noos))
+    printFonts' 0 416 (fonts gd) 1 ("No. of objs = " ++ show noos)
 
     --print a message if the player has eliminated all enemies
     color $ Color4 0 255 0 (255 :: GLubyte)
@@ -147,14 +147,15 @@ renderGun cam mdels = do
     translate (Vector3 x (y + 30) (z :: Double))
     let angle2 =
           acos $ dotProd (normalise $ vectorSub (vx, 0, vz) (x, 0, z)) (1, 0, 0)
-    case vz > z of
-      False -> rotate ((angle2 * 180 / pi) :: GLdouble) (Vector3 0 1 0)
-      True -> rotate ((360 - (angle2 * 180 / pi)) :: GLdouble) (Vector3 0 1 0)
+    (if vz > z then
+          rotate ((360 - (angle2 * 180 / pi)) :: GLdouble) (Vector3 0 1 0)
+     else
+          rotate ((angle2 * 180 / pi) :: GLdouble) (Vector3 0 1 0))
     let angle1 =
           acos $ dotProd (normalise $ vectorSub (vx, vy, vz) (x, y, z)) (0, 1, 0)
     rotate (90 - (angle1 * 180 / pi) :: GLdouble) (Vector3 0 0 1)
     rotate (-90 :: Double) (Vector3 1 0 0)
-    translate (Vector3 (4.8) (-9.5) ((-20) :: Double))
+    translate (Vector3 4.8 (-9.5) ((-20) :: Double))
     scale 2 2 (2 :: GLfloat)
 
     --setup the animation state and drw the model
@@ -164,12 +165,12 @@ renderGun cam mdels = do
 
 renderRay :: ObsObjState -> IO ()
 renderRay
-  ( OOSRay
+  OOSRay
       { rayStart = (x1, y1, z1),
         rayEnd = (x2, y2, z2),
         clipped = cl
       }
-    ) = do
+    = do
     cullFace $= Nothing
     color $ Color4 255 0 0 (255 :: GLubyte)
     depthFunc $= Just Always
@@ -199,7 +200,7 @@ renderRay
     color $ Color4 255 255 255 (255 :: GLubyte)
 
 renderProjectile :: ObsObjState -> IO ()
-renderProjectile (OOSProjectile {projectileOldPos = (x, y, z)}) = do
+renderProjectile OOSProjectile {projectileOldPos = (x, y, z)} = do
   unsafePreservingMatrix $ do
     translate (Vector3 x y z)
     depthFunc $= Just Always
@@ -220,7 +221,7 @@ renderProjectile (OOSProjectile {projectileOldPos = (x, y, z)}) = do
     depthFunc $= Just Less
 
 renderEnemy ::
-  IORef (Camera) ->
+  IORef Camera ->
   HT.BasicHashTable String Model ->
   Frustum ->
   BSPMap ->
@@ -231,7 +232,7 @@ renderEnemy
   mdels
   frust
   bspmap
-  ( OOSAICube
+  OOSAICube
       { oosOldCubePos = (x, y, z),
         oosCubeSize = (sx, sy, sz),
         oosCubeAngle = angle,
@@ -241,7 +242,7 @@ renderEnemy
         lowerAnim = la,
         modelName = name
       }
-    ) = do
+    = do
     --perform a test to see if the object is visible from the player's location
     cam <- readIORef camRef
     clustVis <- isObjectVisible bspmap (cpos cam) (x, y, z)
@@ -274,7 +275,7 @@ renderEnemy
                   currentColor $= Color4 (f * 60) (f * 60) (f * 60) (1 :: Float)
                   unsafePreservingMatrix $ do
                     rotate ((-90) :: GLdouble) (Vector3 1 0 0)
-                    rotate (angle) (Vector3 0 0 1)
+                    rotate angle (Vector3 0 0 1)
                     translate (Vector3 (-10) 0 (-10 :: Double))
                     scale 1.5 1.5 (1.5 :: GLfloat)
                     drawModel (modelRef model, lowerState model)

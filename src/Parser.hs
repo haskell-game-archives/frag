@@ -39,7 +39,7 @@ module Parser (
 
 ) where
 
-import Data.Maybe (isJust)
+import Data.Maybe
 import qualified HGL as HGL (Event(..))
 import qualified HGL as HGL (Point(..))
 import FRP.Yampa
@@ -176,7 +176,7 @@ dragging = arr (giPDS >>> pdsDrag >>> isJust)
 wiToKs :: SF WinInput (Event (Char,Bool))
 wiToKs = arr (mapFilterE getKs)
     where
-           getKs (HGL.Char {HGL.char=c, HGL.isDown = ks}) = Just (c,ks)
+           getKs HGL.Char {HGL.char=c, HGL.isDown = ks} = Just (c,ks)
            getKs _                        = Nothing
 
 
@@ -186,7 +186,7 @@ wiToCmd = arr (mapFilterE selChar)
                 >>> hold "" *** arr (mapFilterE id)
     where
            scanChar (_, S cont) c = cont c
-           selChar (HGL.Char {HGL.char=c, HGL.isDown = True}) = Just c
+           selChar HGL.Char {HGL.char=c, HGL.isDown = True} = Just c
            selChar _                        = Nothing
 
 
@@ -227,7 +227,7 @@ scanCmds = scanCmd cmds
 --              continuation.
 
 scanCmd :: [(String, Cont String)] -> Scanner
-scanCmd cmds = scanSubCmd "" cmds
+scanCmd = scanSubCmd ""
 
 
 -- Scan one subcommand/keyword argument.
@@ -317,39 +317,39 @@ initPDS = PDState {
 
 
 wiToPDS :: SF WinInput PDState
-wiToPDS = (accumHoldBy nextPDS initPDS)
+wiToPDS = accumHoldBy nextPDS initPDS
 
 
 -- Compute next pointing device state.
 nextPDS :: PDState -> HGL.Event -> PDState
 --nextPDS pds (HGL.Key {}) = pds                          -- Currently we ignore keys.
-nextPDS pds (HGL.Button {HGL.pt = p, HGL.isLeft = True, HGL.isDown = True}) =
+nextPDS pds HGL.Button {HGL.pt = p, HGL.isLeft = True, HGL.isDown = True} =
     -- Left button pressed.
     pds {pdsPos = p', pdsDragVec = dv, pdsLeft = Just p'}
     where
            p' = gPointToPosition2 p
-           dv = maybe (pdsDragVec pds) (\dspos -> p' .-. dspos) (pdsDrag pds)
-nextPDS pds (HGL.Button {HGL.pt = p, HGL.isLeft = True, HGL.isDown = False}) =
+           dv = maybe (pdsDragVec pds) (p' .-.) (pdsDrag pds)
+nextPDS pds HGL.Button {HGL.pt = p, HGL.isLeft = True, HGL.isDown = False} =
     -- Left button released.
     pds {pdsPos = p', pdsDragVec = dv, pdsLeft = Nothing, pdsDrag = md}
     where
            p' = gPointToPosition2 p
-           md = maybe Nothing (const (pdsDrag pds)) (pdsRight pds)
-           dv = maybe (pdsDragVec pds) (\dspos -> p' .-. dspos) md
-nextPDS pds (HGL.Button {HGL.pt = p, HGL.isLeft = False, HGL.isDown = True}) =
+           md = const (pdsDrag pds) =<< pdsRight pds
+           dv = maybe (pdsDragVec pds) (p' .-.) md
+nextPDS pds HGL.Button {HGL.pt = p, HGL.isLeft = False, HGL.isDown = True} =
     -- Right button pressed.
     pds {pdsPos = p', pdsDragVec = dv, pdsRight = Just p'}
     where
            p' = gPointToPosition2 p
-           dv = maybe (pdsDragVec pds) (\dspos -> p' .-. dspos) (pdsDrag pds)
-nextPDS pds (HGL.Button {HGL.pt = p, HGL.isLeft = False, HGL.isDown = False}) =
+           dv = maybe (pdsDragVec pds) (p' .-.) (pdsDrag pds)
+nextPDS pds HGL.Button {HGL.pt = p, HGL.isLeft = False, HGL.isDown = False} =
     -- Right button released.
     pds {pdsPos = p', pdsDragVec = dv, pdsRight = Nothing, pdsDrag = md}
     where
            p' = gPointToPosition2 p
-           md = maybe Nothing (const (pdsDrag pds)) (pdsLeft pds)
-           dv = maybe (pdsDragVec pds) (\dspos -> p' .-. dspos) md
-nextPDS pds (HGL.MouseMove {HGL.pt = p}) =
+           md = const (pdsDrag pds) =<< pdsLeft pds
+           dv = maybe (pdsDragVec pds) (p' .-.) md
+nextPDS pds HGL.MouseMove {HGL.pt = p} =
     -- Mouse move.
     pds {pdsPos = p', pdsDragStartPos = dsp, pdsDragVec = dv, pdsDrag = md}
     where
@@ -357,8 +357,8 @@ nextPDS pds (HGL.MouseMove {HGL.pt = p}) =
            md = case pdsLeft pds of
                     mlp@(Just _) -> mlp
                     Nothing       -> pdsRight pds
-           dsp = maybe (pdsDragStartPos pds) id md
-           dv = maybe (pdsDragVec pds) (\dspos -> p' .-. dspos) md
+           dsp = fromMaybe (pdsDragStartPos pds) md
+           dv = maybe (pdsDragVec pds) (p' .-.) md
 nextPDS pds _ = pds                     -- Ignore unknown events.
 
 gPointToPosition2 :: HGL.Point -> Position2

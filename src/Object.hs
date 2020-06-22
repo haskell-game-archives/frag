@@ -96,13 +96,13 @@ isRay (OOSRay {}) = True
 isRay _ = False
 
 isCamera :: ObsObjState -> Bool
-isCamera (OOSCamera {}) = True
+isCamera OOSCamera {} = True
 isCamera _ = False
 
 isAICube :: ObsObjState -> Bool
-isAICube (OOSAICube {}) = True
+isAICube OOSAICube {} = True
 isAICube _ = False
 
 isProjectile :: ObsObjState -> Bool
-isProjectile (OOSProjectile {}) = True
+isProjectile OOSProjectile{} = True
 isProjectile _ = False

@@ -18,7 +18,7 @@ rayBox ::
 rayBox (rayOx, rayOy, rayOz) (rayDx, rayDy, rayDz) (minx, miny, minz) (maxx, maxy, maxz)
   | (rayOx, rayOy, rayOz) == (rayDx, rayDy, rayDz) = False
   | otherwise =
-    case ((txmin > tymax) || (tymin > txmax)) of
+    case (txmin > tymax) || (tymin > txmax) of
       True -> False
       _ -> intersectz
   where
@@ -26,14 +26,14 @@ rayBox (rayOx, rayOy, rayOz) (rayDx, rayDy, rayDz) (minx, miny, minz) (maxx, max
     (tymin, tymax) = getT rayOy rayDy miny maxy
     (tzmin, tzmax) = getT rayOz rayDz minz maxz
     intersectz =
-      not (((max txmin tymin) > tzmax) || (tzmin > (min txmax tymax)))
+      not ((max txmin tymin > tzmax) || (tzmin > min txmax tymax))
 
 getT :: Double -> Double -> Double -> Double -> (Double, Double)
 getT rayO rayD mn mx
   | dd >= 0 = ((mn - rayO) * dd, (mx - rayO) * dd)
   | otherwise = ((mx - rayO) * dd, (mn - rayO) * dd)
   where
-    dd = (1 / (rayO - rayD))
+    dd = 1 / (rayO - rayD)
 
 -- tests if 2 AABBs intersect
 boxBox :: Vec3 -> Vec3 -> Vec3 -> Vec3 -> Bool
@@ -46,9 +46,9 @@ boxBox (x1, y1, z1) (w1, h1, d1) (x2, y2, z2) (w2, h2, d2)
 -- tests if an AABB intersects a sphere
 boxSphere :: Vec3 -> Vec3 -> Vec3 -> Double -> Bool
 boxSphere (x1, y1, z1) (w1, h1, d1) (x2, y2, z2) rad
-  | (abs (x1 - x2)) <= (w1 + rad) = True
-  | (abs (y1 - y2)) <= (h1 + rad) = True
-  | (abs (z1 - z2)) <= (d1 + rad) = True
+  | abs (x1 - x2) <= (w1 + rad) = True
+  | abs (y1 - y2) <= (h1 + rad) = True
+  | abs (z1 - z2) <= (d1 + rad) = True
   | otherwise = False
 
 -- test if two spheres intersect

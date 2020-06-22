@@ -22,7 +22,7 @@ quat2Mat :: Quaternion -> (Float, Float, Float) -> IO (GLmatrix GLfloat)
 quat2Mat (x, y, z, w) (t1, t2, t3) =
   newMatrix
     ColumnMajor
-    [ (r00 :: GLfloat),
+    [ r00 :: GLfloat,
       r01,
       r02,
       r03,
@@ -90,10 +90,10 @@ mat2Quat
       )
     where
       diag = r00 + r11 + r22 + 1
-      scale0 = 2 * (sqrt diag)
-      scale1 = 2 * (sqrt (r00 - r11 - r22 + 1))
-      scale2 = 2 * (sqrt (r11 - r00 - r22 + 1))
-      scale3 = 2 * (sqrt (r22 - r00 - r11 + 1))
+      scale0 = 2 * sqrt diag
+      scale1 = 2 * sqrt (r00 - r11 - r22 + 1)
+      scale2 = 2 * sqrt (r11 - r00 - r22 + 1)
+      scale3 = 2 * sqrt (r22 - r00 - r11 + 1)
 
 -- does not really perform spherical linaer interpolation
 -- but the difference isn't really noticeable
