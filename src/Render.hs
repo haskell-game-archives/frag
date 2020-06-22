@@ -1,5 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
-
 module Render
   ( renderObjects,
     renderGun,
@@ -46,7 +44,7 @@ renderHud gd playerState noos tme = do
     let dt = (realToFrac (tme - lastTime3) / 1000)
     color $ Color4 255 255 255 (255 :: GLubyte)
     printFonts' 0 464 (fonts gd) 1 $
-      "framerate = " ++ (show (truncate ((1 / dt) :: Double) :: Int))
+      "framerate = " ++ show (truncate ((1 / dt) :: Double) :: Int)
 
     --print the player's score
     printFonts'
@@ -57,7 +55,7 @@ renderHud gd playerState noos tme = do
       ("ezpks = " ++ show (score playerState))
 
     --print the position of the player
-    let (q, w, e) = (cpos (oldCam playerState))
+    let (q, w, e) = cpos (oldCam playerState)
     printFonts'
       0
       432
@@ -70,28 +68,25 @@ renderHud gd playerState noos tme = do
 
     --print a message if the player has eliminated all enemies
     color $ Color4 0 255 0 (255 :: GLubyte)
-    case (score playerState == nems gd && nems gd > 0) of
-      True -> do
-        printFonts' 96 272 (fonts gd) 1 "You've killed everybody! (You monster.)"
-      --printFonts' 248 256 (fonts gd) 1 ("Happy Now?")
-      _ -> return ()
+    when (score playerState == nems gd && nems gd > 0) $ do
+      printFonts' 96 272 (fonts gd) 1 "You've killed everybody! (You monster.)"
+    --printFonts' 248 256 (fonts gd) 1 ("Happy Now?")
 
     --print a message if the player has died
-    case health playerState <= 0 of
-      True -> do
-        color $ Color4 255 0 0 (255 :: GLubyte)
-        printFonts' 210 240 (fonts gd) 1 "Oh, botheration. You died."
-        color $ Color4 255 255 255 (255 :: GLubyte)
-      _ -> return ()
+    when (health playerState <= 0) $ do
+      color $ Color4 255 0 0 (255 :: GLubyte)
+      printFonts' 210 240 (fonts gd) 1 "Oh, botheration. You died."
+      color $ Color4 255 255 255 (255 :: GLubyte)
 
     --render the health and score of the player with big fonts
     color $ Color4 255 255 255 (255 :: GLubyte)
     printFonts' 4 50 (fonts gd) 1 "health"
     printFonts' 540 50 (fonts gd) 1 "score"
     color $ Color4 232 192 0 (255 :: GLubyte)
-    case health playerState > 0 of
-      True -> renderNum 4 1 (nbase gd) (truncate (health playerState))
-      False -> renderNum 4 1 (nbase gd) 0
+    ( if health playerState > 0
+        then renderNum 4 1 (nbase gd) (truncate (health playerState))
+        else renderNum 4 1 (nbase gd) 0
+      )
     color $ Color4 232 192 0 (255 :: GLubyte)
     renderNum 540 1 (nbase gd) (score playerState)
 
@@ -187,16 +182,14 @@ renderRay
         vertex (Vertex3 x1 (y1 + 0.12) z1)
       depthFunc $= Just Less
       cullFace $= Just Front
-      case cl of
-        True -> do
-          cullFace $= Nothing
-          unsafePreservingMatrix $ do
-            translate (Vector3 x2 y2 z2)
-            renderQuadric
-              (QuadricStyle Nothing NoTextureCoordinates Outside FillStyle)
-              (Sphere 3 12 12)
-          cullFace $= Just Front
-        _ -> return ()
+      when cl $ do
+        cullFace $= Nothing
+        unsafePreservingMatrix $ do
+          translate (Vector3 x2 y2 z2)
+          renderQuadric
+            (QuadricStyle Nothing NoTextureCoordinates Outside FillStyle)
+            (Sphere 3 12 12)
+        cullFace $= Just Front
       color $ Color4 255 255 255 (255 :: GLubyte)
 
 renderProjectile :: ObsObjState -> IO ()

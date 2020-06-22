@@ -120,16 +120,29 @@ renderEnemy
               Just model <- Data.HashTable.lookup models name
               writeIORef
                 (pitch model)
-                (Just
-                  $ do cullFace $= Nothing cullFace
-                          $= Just Front rotate p (Vector3 0 1 0))
+                ( Just $
+                    do
+                      cullFace $= Nothing cullFace
+                        $= Just Front rotate p (Vector3 0 1 0)
+                )
               writeIORef (lowerState model) la
               writeIORef (upperState model) ua
               currentColor $= Color4 (f * 60) (f * 60) (f * 60) (1 :: Float)
-              unsafePreservingMatrix
-                $ do rotate
-                      ((- 90) :: GLdouble) (Vector3 1 0 0) rotate angle (Vector3 0 0 1)
-                      translate (Vector3 (- 10) 0 (- 10 :: Double)) scale 1.5 1.5
-                      (1.5 :: GLfloat) drawModel (modelRef model, lowerState model)
+              unsafePreservingMatrix $
+                do
+                  rotate
+                    ((- 90) :: GLdouble)
+                    (Vector3 1 0 0)
+                    rotate
+                    angle
+                    (Vector3 0 0 1)
+                    translate
+                    (Vector3 (- 10) 0 (- 10 :: Double))
+                    scale
+                    1.5
+                    1.5
+                    (1.5 :: GLfloat)
+                    drawModel
+                    (modelRef model, lowerState model)
               currentColor $= Color4 1 1 1 (1 :: Float)
               writeIORef (pitch model) Nothing
