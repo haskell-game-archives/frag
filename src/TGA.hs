@@ -38,7 +38,7 @@ readTga filePath =
     hGetBuf handle buf 6
     hGetBuf handle buf 6
     header <- peekArray 6 buf
-    let w1 = (fromIntegral (header !! 1)) * 256 :: Int
+    let w1 = fromIntegral (header !! 1) * 256 :: Int
     let width = w1 + fromIntegral (head header)
     let h1 = fromIntegral (header !! 3) * 256 :: Int
     let height = h1 + fromIntegral (header !! 2)

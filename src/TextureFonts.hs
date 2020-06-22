@@ -23,7 +23,7 @@ buildFonts = do
   textureBinding Texture2D $= fontTex
   let cxcys =
         [ ( realToFrac (x `mod` 16) / 16,
-            (realToFrac (x `div` 16) / 16)
+            realToFrac (x `div` 16) / 16
           )
           | x <- [0 .. (255 :: Int)]
         ]

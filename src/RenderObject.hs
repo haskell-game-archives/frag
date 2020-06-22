@@ -95,7 +95,7 @@ renderEnemy
   models
   frust
   bspmap
-  ( OOSAICube
+  OOSAICube
       { oosOldCubePos = (x, y, z),
         oosCubeSize = (sx, sy, sz),
         oosCubeAngle = angle,
@@ -106,11 +106,11 @@ renderEnemy
         lowerAnim = la,
         modelName = name
       }
-    ) = do
+    = do
     --perform a test to see if the object is visible from the player's location
     cam <- readIORef camRef
     clustVis <- isObjectVisible bspmap (cpos cam) (x, y, z)
-    case (clustVis) of
+    case clustVis of
       False -> return ()
       True -> do
         -- a second check to see if the object is within the player's frustum
@@ -119,12 +119,12 @@ renderEnemy
                 frust
                 (vectorAdd (x, y, z) (- sx, - sy, - sz))
                 (vectorAdd (x, y, z) (sx, sy, sz))
-        case (frusTest) of
+        case frusTest of
           True -> do
             -- a third check to see if a ray can be fired to
             --the objects position without colliding
             let rayVis = rayTest bspmap (cpos cam) (x, y, z)
-            case (rayVis) of
+            case rayVis of
               False -> return ()
               _ -> do
                 unsafePreservingMatrix $ do

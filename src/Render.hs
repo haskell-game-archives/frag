@@ -267,7 +267,7 @@ renderEnemy
                     ( Just $ do
                         cullFace $= Nothing
                         cullFace $= Just Front
-                        (rotate p (Vector3 0 1 0))
+                        rotate p (Vector3 0 1 0)
                     )
                   writeIORef (lowerState model) la
                   writeIORef (upperState model) ua

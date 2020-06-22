@@ -36,9 +36,8 @@ getBoxOffs (x, y, z) (x1, y1, z1) = abs (x * x1) + abs (y * y1) + abs (z * z1)
 
 aiVisTest :: BSPMap -> Vec3 -> Double -> Vec3 -> Int -> Bool
 aiVisTest bsp currentPos angle targetPos range =
-  if fieldTest currentPos angle targetPos range
-    then rayTest bsp currentPos targetPos
-    else False
+  fieldTest currentPos angle targetPos range
+    && rayTest bsp currentPos targetPos
 
 -- test if the objct lies wihitn the field of view
 fieldTest ::
@@ -58,9 +57,7 @@ fieldTest (x, y, z) angle (ox, oy, oz) range =
     distance = sqrt (((x - ox) ^ (2 :: Int)) + ((y - oy) ^ (2 :: Int)) + ((z - oz) ^ (2 :: Int)))
     horizanglei =
       let ha = acos $ dotProd (normalise $ vectorSub (ox, 0, oz) (x, 0, z)) (1, 0, 0)
-       in case oz > z of
-            False -> ha * 180 / pi
-            True -> 360 - (ha * 180 / pi)
+       in (if oz > z then 360 - (ha * 180 / pi) else ha * 180 / pi)
     horizangle =
       min (abs (horizanglei - angle)) (abs (horizanglei - (angle + 360)))
     verticalangle =
@@ -83,9 +80,10 @@ rayTest bsp (x, y, z) vec2@(_, _, _) =
             False -> True
             _ -> case (snd $ clipRay2 bsp v3 (x, y + 30, z) (0, 0, 0)) of
               False -> True
-              _ -> case snd $ clipRay2 bsp v3 (x, y + 30, z) (0, 0, 0) of
-                False -> True
-                True -> False
+              _ -> (if snd $ clipRay2 bsp v3 (x, y + 30, z) (0, 0, 0) then
+                        False
+                    else
+                        True)
 
 createSphere :: Double -> CollisionType
 createSphere = SphereT
@@ -193,9 +191,10 @@ checkBrush' start end cType brush
             (brushSides brush)
      in case colout of
           Just (out, collided, step, grounded, startR, endR, newNorm) ->
-            case startR < endR && startR > -1 && out of
-              True -> Just (collided, step, grounded, fixRatio startR, newNorm)
-              _ -> Nothing
+            (if startR < endR && startR > - 1 && out then
+                Just (collided, step, grounded, fixRatio startR, newNorm)
+             else
+                Nothing)
           _ -> Nothing
   | otherwise = Nothing
   where

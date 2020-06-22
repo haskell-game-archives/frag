@@ -18,8 +18,7 @@ getAndCreateTextures :: [String] -> IO [Maybe TextureObject]
 getAndCreateTextures fileNames = do
   let fileNamesExts = map (("tga/" ++) . (++ ".tga")) fileNames
   texData <- mapM readImageC fileNamesExts
-  texObjs <- mapM createTexture texData
-  return texObjs
+  mapM createTexture texData
 
 -- read a single texture
 getAndCreateTexture :: String -> IO (Maybe TextureObject)
