@@ -3,16 +3,16 @@
 Main module
 
 -}
-
+{-# LANGUAGE LambdaCase #-}
 module Main where
 
 import BSP
 import Camera
-import Control.DeepSeq (force)
+import Control.DeepSeq
 import Control.Monad
 import qualified Data.HashTable.IO as HT
 import Data.IORef
-import Data.List (find)
+import Data.List
 import Data.Maybe
 import FRP.Yampa
 import Frustum
@@ -26,7 +26,7 @@ import Matrix
 import Object
 import Parser
 import Render
-import System.Exit (exitSuccess)
+import System.Exit
 import TextureFonts
 import Textures
 
@@ -188,9 +188,8 @@ actuate ::
   (Event (), [ObsObjState]) ->
   IO Bool
 actuate gd _ _ (e, noos) = do
-  when
-    (force noos `seq` isEvent e)
-    (render gd noos)
+  when (force noos `seq` isEvent e) $
+    render gd noos
   return False
 
 initr ::
@@ -227,45 +226,39 @@ render gd oos = do
   _ <- readIORef (lastDrawTime2 gd)
   _ <- readIORef (hasReacted gd)
 
-  --case (((realToFrac (time - lastTime2))/1000) <= (1/60)) of
-  if True
-    then do
-      -- initial setup
-      clear [ColorBuffer, DepthBuffer]
-      loadIdentity
+  -- initial setup
+  clear [ColorBuffer, DepthBuffer]
+  loadIdentity
 
-      --find the camera and set our view
-      let playerState = findCam oos
-      case cood playerState of
-        [] -> return ()
-        _ -> print (getPos (cood playerState))
-      let cam = setCam playerState
-      writeIORef (camera gd) cam
-      cameraLook cam
+  --find the camera and set our view
+  let playerState = findCam oos
+  case cood playerState of
+    [] -> return ()
+    _ -> print (getPos (cood playerState))
+  let cam = setCam playerState
+  writeIORef (camera gd) cam
+  cameraLook cam
 
-      --render the map
-      renderBSP (gamemap gd) (cpos cam)
+  --render the map
+  renderBSP (gamemap gd) (cpos cam)
 
-      --render the objects
-      mp <- readIORef (gamemap gd)
-      frust <- getFrustum
-      mapM_ (renderObjects (camera gd) (models gd) frust mp) oos
+  --render the objects
+  mp <- readIORef (gamemap gd)
+  frust <- getFrustum
+  mapM_ (renderObjects (camera gd) (models gd) frust mp) oos
 
-      --render the gun
-      renderGun cam (models gd)
+  --render the gun
+  renderGun cam (models gd)
 
-      --set up orthographics mode so we can draw the fonts
-      renderHud gd playerState (length oos) tme
+  --set up orthographics mode so we can draw the fonts
+  renderHud gd playerState (length oos) tme
 
-      writeIORef (lastDrawTime2 gd) tme
-      writeIORef (hasReacted gd) False
-      swapBuffers
-    else do
-      writeIORef (lastDrawTime2 gd) tme
-      return ()
+  writeIORef (lastDrawTime2 gd) tme
+  writeIORef (hasReacted gd) False
+  swapBuffers
 
 getPos :: [(Double, Double, Double)] -> [(Int, Int, Int)]
-getPos = fmap (ints . vectorAdd (0, 90, 0))
+getPos = map (ints . vectorAdd (0, 90, 0))
   where
     ints (x, y, z) = (truncate x, truncate y, truncate z)
 
@@ -284,12 +277,8 @@ display = return ()
 
 keyboardMouse ::
   IORef OGLInput -> IORef OGLInput -> IORef Bool -> KeyboardMouseCallback
-keyboardMouse _ _ lck (Char 'z') _ _ _ = do
-  _ <- readIORef lck
-  writeIORef lck False
-keyboardMouse _ _ lck (Char 'x') _ _ _ = do
-  _ <- readIORef lck
-  writeIORef lck True
+keyboardMouse _ _ lck (Char 'z') _ _ _ = readIORef lck >> writeIORef lck False
+keyboardMouse _ _ lck (Char 'x') _ _ _ = readIORef lck >> writeIORef lck True
 keyboardMouse _ _ _ (Char '\27') _ _ _ = exitSuccess
 keyboardMouse
   _
@@ -329,17 +318,15 @@ keyboardMouse
       )
 
 mouseMotion :: IORef OGLInput -> MotionCallback
-mouseMotion newInput newCursorPos = do
-  lst <- readIORef newInput
-  case lst of
-    (Just inp) -> writeIORef newInput (Just inp)
+mouseMotion newInput newCursorPos =
+  readIORef newInput >>= \case
+    Just inp -> writeIORef newInput (Just inp)
     _ -> writeIORef newInput (Just MouseMove {pos = newCursorPos})
 
 dragMotion :: IORef OGLInput -> MotionCallback
 dragMotion newInput newCursorPos = do
-  lst <- readIORef newInput
-  case lst of
-    (Just inp) -> writeIORef newInput (Just inp)
+  readIORef newInput >>= \case
+    Just inp -> writeIORef newInput (Just inp)
     _ -> writeIORef newInput (Just MouseMove {pos = newCursorPos})
 
 idle ::
@@ -435,8 +422,7 @@ coalesce
         }
     ) =
     Event HGL.Char {HGL.char = a, HGL.isDown = isKeyDown ks}
-coalesce (Just MouseMove {pos = p}) =
-  Event HGL.MouseMove {HGL.pt = pos2Point p}
+coalesce (Just MouseMove {pos = p}) = Event HGL.MouseMove {HGL.pt = pos2Point p}
 coalesce _ = NoEvent
 
 pos2Point :: Position -> HGL.Point
@@ -451,7 +437,6 @@ isKeyDown Down = True
 isKeyDown _ = False
 
 filter :: Eq a => a -> a -> Maybe a
-filter a b =
-  if a == b
-    then Just a
-    else Nothing
+filter a b
+  | a == b = Just a
+  | otherwise = Nothing
