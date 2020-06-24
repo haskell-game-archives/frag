@@ -5,12 +5,12 @@
 
 module BitSet where
 
-import Data.Array.IO (IOUArray, newArray, writeArray, readArray, getBounds, rangeSize)
+import Data.Array.IO (IOUArray, getBounds, newArray, rangeSize, readArray, writeArray)
 
 newtype BitSet = BitSet (IOUArray Int Bool)
 
 emptyBS :: Int -> IO BitSet
-emptyBS size = BitSet <$> newArray (0, size-1) False
+emptyBS size = BitSet <$> newArray (0, size -1) False
 
 clearBS :: BitSet -> Int -> IO ()
 clearBS (BitSet bs) i = writeArray bs i False
@@ -26,4 +26,3 @@ isSetBS (BitSet bs) = readArray bs
 
 sizeBS :: BitSet -> IO Int
 sizeBS (BitSet bs) = fmap rangeSize (getBounds bs)
-
