@@ -180,8 +180,7 @@ clip
   _ =
     let (clippedPos, hasCol) = clipRay mp pos3 pos1 (0, 0, 0)
      in ObjInput
-          { oiHit =
-              listToEvent $ findCollidingObjects ooses (k, projectile),
+          { oiHit = listToEvent $ findCollidingObjects ooses (k, projectile),
             oiMessage = noEvent,
             oiCollision = initCamera (80 :: Int, 611, 60) (80 :: Int, 611, 59) (0, 1, 0),
             oiCollisionPos = clippedPos,
@@ -189,6 +188,7 @@ clip
             oiVisibleObjs = noEvent,
             oiGameInput = gi
           }
+clip _ _ _ _ _ _ = undefined
 
 listToEvent :: [a] -> Event [a]
 listToEvent [] = noEvent
@@ -213,15 +213,10 @@ findCollidingObjects ::
   (ILKey, ObsObjState) ->
   [(ILKey, ObsObjState)]
 findCollidingObjects ooses (k, obj)
-  | isProjectile obj =
-    [ (k', oos') | (k', oos') <- ooses, k /= k', isCamera oos', checkCollision obj oos'
-    ]
-  | isCamera obj =
-    [ (k', oos') | (k', oos') <- ooses, k /= k', isProjectile oos', checkCollision obj oos'
-    ]
-  | isAICube obj =
-    [ (k', oos') | (k', oos') <- ooses, k /= k', isRay oos', checkCollision obj oos'
-    ]
+  | isProjectile obj = [(k', oos') | (k', oos') <- ooses, k /= k', isCamera oos', checkCollision obj oos']
+  | isCamera obj = [(k', oos') | (k', oos') <- ooses, k /= k', isProjectile oos', checkCollision obj oos']
+  | isAICube obj = [(k', oos') | (k', oos') <- ooses, k /= k', isRay oos', checkCollision obj oos']
+  | otherwise = undefined
 
 checkCollision :: ObsObjState -> ObsObjState -> Bool
 checkCollision obj1 obj2

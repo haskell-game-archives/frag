@@ -53,10 +53,9 @@ readMapMedia filepath = withBinaryFile filepath $ \handle -> do
   return (bsp, hash)
 
 readLevelModels :: HT.BasicHashTable String Model -> LevelModel -> IO ()
-readLevelModels hash (MWeapon name) =
-  getWeaponModel hash name
-readLevelModels hash (MPlayerModel name weaponName) =
-  getModel hash name weaponName
+readLevelModels hash (MWeapon name) = getWeaponModel hash name
+readLevelModels hash (MPlayerModel name weaponName) = getModel hash name weaponName
+readLevelModels _ _ = undefined
 
 getModel :: HT.BasicHashTable String Model -> String -> String -> IO ()
 getModel hash name weaponName = do
@@ -108,6 +107,7 @@ lines2ObjectCons :: String -> ObjectConstructor
 lines2ObjectCons str
   | head (words str) == "ConsCamera" = read str :: ObjectConstructor
   | head (words str) == "ConsAICube" = read str :: ObjectConstructor
+  | otherwise = undefined
 
 lines2LevelModels :: [String] -> [LevelModel]
 lines2LevelModels = map read

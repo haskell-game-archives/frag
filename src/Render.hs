@@ -191,6 +191,7 @@ renderRay
             (Sphere 3 12 12)
         cullFace $= Just Front
       color $ Color4 255 255 255 (255 :: GLubyte)
+renderRay _ = undefined
 
 renderProjectile :: ObsObjState -> IO ()
 renderProjectile OOSProjectile {projectileOldPos = (x, y, z)} = do
@@ -212,6 +213,7 @@ renderProjectile OOSProjectile {projectileOldPos = (x, y, z)} = do
       (Sphere 2.5 12 12)
     cullFace $= Just Front
     depthFunc $= Just Less
+renderProjectile _ = undefined
 
 renderEnemy ::
   IORef Camera ->
@@ -269,3 +271,4 @@ renderEnemy
                 drawModel (modelRef model, lowerState model)
               currentColor $= Color4 1 1 1 (1 :: Float)
               writeIORef (pitch model) Nothing
+renderEnemy _ _ _ _ _ = undefined

@@ -70,7 +70,7 @@ createAWindow windowName level = do
   initialDisplayMode $= [WithDepthBuffer, DoubleBuffered, RGBAMode]
   drawBuffer $= BackBuffers
   initialWindowSize $= Size 640 480
-  createWindow windowName
+  _ <- createWindow windowName
   clear [ColorBuffer]
   viewport $= (Position 0 0, Size 640 480)
   matrixMode $= Projection
@@ -116,7 +116,7 @@ createAWindow windowName level = do
   lastDTime2 <- newIORef tme
   fpsc1 <- newIORef (0, 0)
   fps1 <- newIORef (0, 0, 0)
-  newIORef (0 :: Int)
+  _ <- newIORef (0 :: Int)
   _ <- newIORef tme
   --hold new keyboard input
   newInput <- newIORef Nothing
@@ -220,7 +220,7 @@ render gd oos = do
   -- if the last time is at least greater than 0.016
   -- seconds and the mouse is locked reset the position
   -- to the middle of the screen
-  when (realToFrac ((tme - lastime) :: Int) / 1000 >= (1 / 60) && l) $ do
+  when (realToFrac ((tme - lastime) :: Int) / (1000 :: Double) >= (1 / 60) && l) $ do
     pointerPosition $= Position 320 240
     writeIORef (lastDrawTime gd) tme
 
@@ -265,16 +265,16 @@ render gd oos = do
       return ()
 
 getPos :: [(Double, Double, Double)] -> [(Int, Int, Int)]
-getPos coords = fmap ints l
+getPos = fmap (ints . vectorAdd (0, 90, 0))
   where
-    l = fmap (vectorAdd (0, 90, 0)) coords
     ints (x, y, z) = (truncate x, truncate y, truncate z)
 
 findCam :: [ObsObjState] -> ObsObjState
-findCam states = fromJust $ find isCamera states
+findCam = fromJust . find isCamera
 
 setCam :: ObsObjState -> Camera
 setCam OOSCamera {oldCam = cam, newCam = _} = cam
+setCam _ = undefined
 
 -------------------------------------------------------------------------------
 --callbacks
@@ -285,7 +285,7 @@ display = return ()
 keyboardMouse ::
   IORef OGLInput -> IORef OGLInput -> IORef Bool -> KeyboardMouseCallback
 keyboardMouse _ _ lck (Char 'z') _ _ _ = do
-  readIORef lck
+  _ <- readIORef lck
   writeIORef lck False
 keyboardMouse _ _ lck (Char 'x') _ _ _ = do
   _ <- readIORef lck
@@ -354,9 +354,8 @@ idle lasttime newInput hasreacted _ inputState rh = do
   lTime <- readIORef lasttime
   currenttime <- get elapsedTime
   when (currenttime - lTime >= 16) $ do
-    (dt, input) <-
-      getWinInput (lasttime, newInput) inputState True currenttime
-    react rh (dt, input)
+    (dt, input) <- getWinInput (lasttime, newInput) inputState True currenttime
+    _ <- react rh (dt, input)
     writeIORef hasreacted True
     writeIORef lasttime currenttime
     return ()

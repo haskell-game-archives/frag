@@ -429,6 +429,7 @@ recurseDraw
         Nothing -> return ()
       drawModel (model, state)
     recurseDraw t func mss ccqs ncqs
+recurseDraw _ _ _ _ _ = undefined
 
 -- draws a mesh object with vertex arrays
 drawObject :: AnimState -> MeshObject -> IO ()
@@ -695,6 +696,7 @@ scanTag ((s, m) : sms) tgs = do
     Just x -> do
       rest <- scanTag sms tgs
       return ((x, m) : rest)
+    Nothing -> undefined
 
 splitTags :: Int -> [MD3Tag] -> [[MD3Tag]]
 splitTags _ [] = []

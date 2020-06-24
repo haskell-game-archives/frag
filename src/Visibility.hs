@@ -148,8 +148,8 @@ checkBrushes ::
   Vec3 ->
   Vec3 ->
   Maybe (Bool, Bool, Bool, Double, Vec3)
-checkBrushes cType _ (Leaf leaf) start end =
-  checkBrush start end cType (leafBrushes leaf)
+checkBrushes cType _ (Leaf leaf) start end = checkBrush start end cType (leafBrushes leaf)
+checkBrushes _ _ _ _ _ = undefined
 
 checkBrush ::
   Vec3 ->
@@ -313,6 +313,7 @@ getVOffs (p1, p2, p3) (Box (x, y, z) (x1, y1, z1) _) =
     chooseMin' p mn mx
       | p < 0 = mx
       | otherwise = mn
+getVOffs _ _ = undefined
 
 -------------------------------------------------------------------------------
 
@@ -364,109 +365,83 @@ split ::
   Vec3 ->
   Tree ->
   Maybe (Bool, Bool, Bool, Double, Vec3)
-split
-  cType
-  cState
-  startDist
-  endDist
-  startRatio
-  endRatio
-  start
-  end
-  (Branch node left right)
-    | startDist < endDist =
-      let result1 =
-            checkNode
-              cType
-              cState
-              right
-              startRatio
-              (middleR r1)
-              start
-              (middleV r1)
-       in case result1 of
-            Just (True, _, _, _, _) -> result1
-            _ ->
-              let result2 =
-                    checkNode
-                      cType
-                      cState
-                      left
-                      (middleR r2)
-                      endRatio
-                      (middleV r2)
-                      end
-               in case result2 of
-                    Just (True, _, _, _, _) -> result2
-                    _ -> Nothing
-    | startDist > endDist =
-      let result1 =
-            checkNode
-              cType
-              cState
-              left
-              startRatio
-              (middleR r2)
-              start
-              (middleV r2)
-       in case result1 of
-            Just (True, _, _, _, _) -> result1
-            _ ->
-              let result2 =
-                    checkNode
-                      cType
-                      cState
-                      right
-                      (middleR r1)
-                      endRatio
-                      (middleV r1)
-                      end
-               in case result2 of
-                    Just (True, _, _, _, _) -> result2
-                    _ -> Nothing
-    | otherwise =
-      let result1 =
-            checkNode
-              cType
-              cState
-              left
-              startRatio
-              (middleR 1.0)
-              start
-              (middleV 1.0)
-       in case result1 of
-            Just (True, _, _, _, _) -> result1
-            _ ->
-              let result2 =
-                    checkNode
-                      cType
-                      cState
-                      right
-                      (middleR 0.0)
-                      endRatio
-                      (middleV 0.0)
-                      end
-               in case result2 of
-                    Just (True, _, _, _, _) -> result2
-                    _ -> Nothing
-    where
-      inverseDist = 1.0 / (startDist - endDist)
-      boffset = getOffset cType (planeNormal node)
-      r1 = fixDouble $ (startDist - boffset - epsilon) * inverseDist
-      r2 = fixDouble $ (startDist + boffset + epsilon) * inverseDist
-      middleR = getMiddleRatio startRatio endRatio
-      middleV = getHalfVec start end
-      fixDouble x
-        | x < 0.0 = 0.0
-        | x > 1.0 = 1.0
-        | otherwise = x
+split cType cState startDist endDist startRatio endRatio start end (Branch node left right)
+  | startDist < endDist =
+    let result1 = checkNode cType cState right startRatio (middleR r1) start (middleV r1)
+     in case result1 of
+          Just (True, _, _, _, _) -> result1
+          _ ->
+            let result2 = checkNode cType cState left (middleR r2) endRatio (middleV r2) end
+             in case result2 of
+                  Just (True, _, _, _, _) -> checkNode cType cState left (middleR r2) endRatio (middleV r2) end
+                  _ -> Nothing
+  | startDist > endDist =
+    let result1 =
+          checkNode
+            cType
+            cState
+            left
+            startRatio
+            (middleR r2)
+            start
+            (middleV r2)
+     in case result1 of
+          Just (True, _, _, _, _) -> result1
+          _ ->
+            let result2 =
+                  checkNode
+                    cType
+                    cState
+                    right
+                    (middleR r1)
+                    endRatio
+                    (middleV r1)
+                    end
+             in case result2 of
+                  Just (True, _, _, _, _) -> result2
+                  _ -> Nothing
+  | otherwise =
+    let result1 =
+          checkNode
+            cType
+            cState
+            left
+            startRatio
+            (middleR 1.0)
+            start
+            (middleV 1.0)
+     in case result1 of
+          Just (True, _, _, _, _) -> result1
+          _ ->
+            let result2 =
+                  checkNode
+                    cType
+                    cState
+                    right
+                    (middleR 0.0)
+                    endRatio
+                    (middleV 0.0)
+                    end
+             in case result2 of
+                  Just (True, _, _, _, _) -> result2
+                  _ -> Nothing
+  where
+    inverseDist = 1.0 / (startDist - endDist)
+    boffset = getOffset cType (planeNormal node)
+    r1 = fixDouble $ (startDist - boffset - epsilon) * inverseDist
+    r2 = fixDouble $ (startDist + boffset + epsilon) * inverseDist
+    middleR = getMiddleRatio startRatio endRatio
+    middleV = getHalfVec start end
+    fixDouble x
+      | x < 0.0 = 0.0
+      | x > 1.0 = 1.0
+      | otherwise = x
+split _ _ _ _ _ _ _ _ _ = undefined
 
 -- gets the middle of 2 ratios
 getMiddleRatio :: Double -> Double -> Double -> Double
-getMiddleRatio startRatio endRatio ratio =
-  startRatio + (ratio * (endRatio - startRatio))
+getMiddleRatio startRatio endRatio ratio = startRatio + (ratio * (endRatio - startRatio))
 
 -- gets half a vector
 getHalfVec :: Vec3 -> Vec3 -> Double -> Vec3
-getHalfVec start end ratio =
-  vectorAdd start (mapTup (ratio *) (vectorSub end start))
+getHalfVec start end ratio = vectorAdd start (mapTup (ratio *) (vectorSub end start))

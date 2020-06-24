@@ -73,7 +73,6 @@ firePos (x, y, z) (vx, vy, vz) =
           y + 30 + (15000000 * ((vy + 30) - (y + 30))),
           z + (15000000 * (vz - z))
         )
-      (_, _, _) = normalise $ vectorSub (sx2, sy2, sz2) infin
    in ((sx2, sy2, sz2), infin)
 
 -- rotates the view vector along a vector

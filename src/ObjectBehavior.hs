@@ -81,7 +81,6 @@ ray (!x, !y, !z) (!vx, !vy, !vz) firedfrom iD =
         )
   where
     (start, end) = firePos (x, y, z) (vx, vy, vz)
-    (_, _, _) = normalise $ vectorSub end start
     not0 c
       | c /= (0, 0, 0) = c
       | otherwise = (x, y, z)
