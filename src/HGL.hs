@@ -1,5 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
-
 module HGL where
 
 data Event

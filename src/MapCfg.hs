@@ -41,7 +41,7 @@ readMapCfg filepath = withBinaryFile filepath $ \handle -> do
   let objects = map lines2ObjectCons lnes
   return $ map objectCons2IntermediateObjects objects
 
-readMapMedia :: FilePath -> IO (IORef BSPMap, (HT.BasicHashTable String Model))
+readMapMedia :: FilePath -> IO (IORef BSPMap, HT.BasicHashTable String Model)
 readMapMedia filepath = withBinaryFile filepath $ \handle -> do
   lnes <- readLines handle
   print lnes
@@ -110,8 +110,7 @@ lines2ObjectCons str
   | head (words str) == "ConsAICube" = read str :: ObjectConstructor
 
 lines2LevelModels :: [String] -> [LevelModel]
-lines2LevelModels [] = []
-lines2LevelModels (str : strs) = read str : lines2LevelModels strs
+lines2LevelModels = map read
 
 objectCons2IntermediateObjects :: ObjectConstructor -> IntermediateObject
 objectCons2IntermediateObjects (ConsCamera cam) =

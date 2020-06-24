@@ -1,4 +1,4 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE LambdaCase #-}
 
 {- MD3.hs; Mun Hon Cheong (mhch295@cse.unsw.edu.au) 2005
 
@@ -132,7 +132,7 @@ data MD3Model
   = MD3Model
       { numOfTags :: Int,
         modelObjects :: [MeshObject],
-        links :: [(MD3Model, IORef (AnimState))],
+        links :: [(MD3Model, IORef AnimState)],
         auxFunc :: IORef (Maybe (IO ())),
         auxFunc2 :: IORef (Maybe (IO ())),
         tags ::
@@ -303,7 +303,7 @@ turn = 17
 -- sets the animation in the animation state
 setAnim :: (Int, AnimState) -> AnimState
 setAnim (animIndex, animState)
-  | (animName newAnim) == (animName (currentAnim animState)) = animState
+  | animName newAnim == animName (currentAnim animState) = animState
   | otherwise =
     AnimState
       { anims = anims animState,
@@ -314,7 +314,7 @@ setAnim (animIndex, animState)
         lastTime = lastTime animState
       }
   where
-    newAnim = (anims animState) ! animIndex
+    newAnim = anims animState ! animIndex
 
 -- updates the animation
 updateAnim :: (Int, Double, AnimState) -> (Bool, AnimState)
@@ -365,7 +365,7 @@ updateAnim (animIndex, time, animState)
         )
   where
     animStateN = setAnim (animIndex, animState)
-    cAnim = (currentAnim animStateN)
+    cAnim = currentAnim animStateN
 
 -- increment the frame
 cycleFrame :: MD3Animation -> Int -> Int -> Int -> (Bool, Int)
@@ -378,31 +378,28 @@ cycleFrame _ startframe endframe currentframe
 
 updateTime :: Float -> Int -> Int -> MD3Animation -> Double -> (Float, Float, Int)
 updateTime lasttime currentframe nextframe anim presentTime =
-  let animSpeed = (fp anim)
-      presentTimef = 1000 * (realToFrac presentTime)
+  let animSpeed = fp anim
+      presentTimef = 1000 * realToFrac presentTime
       elapsedtime = presentTimef - lasttime
       t = elapsedtime / animSpeed
-   in case ((realToFrac elapsedtime) >= animSpeed) of
-        True -> (t, presentTimef, nextframe)
-        _ -> (t, lasttime, currentframe)
+   in if realToFrac elapsedtime >= animSpeed
+        then (t, presentTimef, nextframe)
+        else (t, lasttime, currentframe)
 
 -------------------------------------------------------------------------------
 -- renders the model
-drawModel :: (MD3Model, IORef (AnimState)) -> IO ()
+drawModel :: (MD3Model, IORef AnimState) -> IO ()
 drawModel (model, stateRef) = do
   texture Texture2D $= Enabled
-  --texture Texture2D                  $= Disabled
   clientState TextureCoordArray $= Enabled
   clientState VertexArray $= Enabled
-  --clientState VertexArray            $= Disabled
-  --clientState TextureCoordArray $= Disabled
+
   animState <- readIORef stateRef
-  _ <- mapM (drawObject animState) (modelObjects model)
-  let currentTag = tags model ! (currentFrame animState)
+  mapM_ (drawObject animState) (modelObjects model)
+  let currentTag = tags model ! currentFrame animState
   let nextTag = tags model ! nextFrame animState
   aux <- readIORef (auxFunc model)
-  aux2 <- readIORef (auxFunc2 model)
-  case aux2 of
+  readIORef (auxFunc2 model) >>= \case
     Just func -> func
     Nothing -> return ()
   recurseDraw (currentTime animState) aux (links model) currentTag nextTag
@@ -411,7 +408,7 @@ drawModel (model, stateRef) = do
 recurseDraw ::
   Float ->
   Maybe (IO ()) ->
-  [(MD3Model, IORef (AnimState))] ->
+  [(MD3Model, IORef AnimState)] ->
   [((Float, Float, Float), (Float, Float, Float, Float))] ->
   [((Float, Float, Float), (Float, Float, Float, Float))] ->
   IO ()
@@ -436,48 +433,37 @@ recurseDraw
 -- draws a mesh object with vertex arrays
 drawObject :: AnimState -> MeshObject -> IO ()
 drawObject animState obj = do
-  let curindex = (currentFrame animState)
-  let nextIndex = (nextFrame animState)
-  case (curindex /= nextIndex) of
-    True -> do
-      convertToVertArray
-        (currentTime animState)
-        ((verticesp obj) ! curindex)
-        ((verticesp obj) ! nextIndex)
-        (vertPtr obj)
-        0
-        (numOfVerts obj)
-      arrayPointer VertexArray
-        $= VertexArrayDescriptor 3 Float 0 (vertPtr obj)
-    _ -> do
-      arrayPointer VertexArray
-        $= VertexArrayDescriptor 3 Float 0 ((verticesp obj) ! curindex)
+  let curindex = currentFrame animState
+  let nextIndex = nextFrame animState
+  if curindex /= nextIndex
+    then
+      ( do
+          convertToVertArray
+            (currentTime animState)
+            (verticesp obj ! curindex)
+            (verticesp obj ! nextIndex)
+            (vertPtr obj)
+            0
+            (numOfVerts obj)
+          arrayPointer VertexArray
+            $= VertexArrayDescriptor 3 Float 0 (vertPtr obj)
+      )
+    else
+      ( do
+          arrayPointer VertexArray
+            $= VertexArrayDescriptor 3 Float 0 (verticesp obj ! curindex)
+      )
 
-  {-clientState VertexArray            $= Enabled
-       lockArrays                              $= (Just (0, (numOfFaces obj)))-}
+  arrayPointer TextureCoordArray $= VertexArrayDescriptor 2 Float 0 (texCoords obj)
 
-  arrayPointer TextureCoordArray
-    $= VertexArrayDescriptor 2 Float 0 (texCoords obj)
-
-  {-clientState TextureCoordArray $= Enabled
-       texture Texture2D                       $= Enabled-}
-
-  textureBinding Texture2D $= (materialID obj)
-
-  {-lockArrays                         $= (Just (0, (numOfFaces obj)))
-       drawElements Triangles  (numOfFaces obj) UnsignedInt (vertIndex obj)-}
+  textureBinding Texture2D $= materialID obj
 
   drawRangeElements
     Triangles
-    (0, (numOfFaces obj))
+    (0, numOfFaces obj)
     (numOfFaces obj)
     UnsignedInt
     (vertIndex obj)
-
-{-lockArrays $= Nothing
-     clientState VertexArray $= Disabled
-     clientState TextureCoordArray $= Disabled
-     texture Texture2D $= Disabled-}
 
 convertToVertArray ::
   Float -> Ptr Float -> Ptr Float -> Ptr Float -> Int -> Int -> IO ()
@@ -525,17 +511,15 @@ readMD3Skin :: FilePath -> IO [(String, String)]
 readMD3Skin filepath = withBinaryFile filepath $ \handle -> do
   contents <- hGetContents handle
   _ <- evaluate $ force contents
-  let filteredStr = (words (replace contents))
+  let filteredStr = words (replace contents)
   let files = findfiles (stripTags filteredStr)
-  case (files == []) of
-    True -> return []
-    False -> return files
+  if null files then return [] else return files
 
 stripTags :: [String] -> [String]
 stripTags [] = []
 stripTags (s : ss)
-  | (head (words (fmap (replace' ['_']) s))) == "tag" = stripTags ss
-  | otherwise = s : (stripTags ss)
+  | head (words (fmap (replace' ['_']) s)) == "tag" = stripTags ss
+  | otherwise = s : stripTags ss
 
 -- - - - - - - - - - - - - - - - - - -
 -- reads the shader file for the weapon
@@ -544,34 +528,32 @@ readMD3Shader :: FilePath -> IO [String]
 readMD3Shader filepath = withBinaryFile filepath $ \handle -> do
   contents <- hGetContents handle
   _ <- evaluate $ force contents
-  let filteredStr = (words (replace contents))
+  let filteredStr = words (replace contents)
   let files = fmap stripExt filteredStr
-  case (files == []) of
-    True -> return []
-    False -> return files
+  if null files then return [] else return files
 
 -- - - - - - - - - - - - - - - - - - -
 -- used by readShader and readSkin
 
 stripExt :: String -> String
-stripExt str = (head (words (fmap (replace' ['.']) str)))
+stripExt str = head (words (fmap (replace' ['.']) str))
 
 findfiles :: [String] -> [(String, String)]
 findfiles [] = []
-findfiles (s : ss) = (s, (stripExt (stripPath (head ss)))) : (findfiles (tail ss))
+findfiles (s : ss) = (s, stripExt (stripPath (head ss))) : findfiles (tail ss)
 
 replace :: String -> String
-replace str = fmap (replace' [',', '\n', '\r']) str
+replace = fmap (replace' [',', '\n', '\r'])
 
 replace' :: [Char] -> Char -> Char
 replace' list char
-  | elem char list = ' '
+  | char `elem` list = ' '
   | otherwise = char
 
 stripPath :: String -> String
-stripPath str = splitPath !! ((length splitPath) -1)
+stripPath str = splitPath !! (length splitPath -1)
   where
-    splitPath = (words (fmap (replace' ['/']) str))
+    splitPath = words (fmap (replace' ['/']) str)
 
 -- - - - - - - - - - - - - - - - - - -
 --  reads the textures
@@ -585,19 +567,19 @@ readMD3Textures files dir = do
   let texF = concat texs
   let unqtex = nub (fmap snd texF)
   textures <- mapM getAndCreateTexture (fmap (dir ++) unqtex)
-  let nmobj = concat $ fmap (assoc texF) (zip unqtex textures)
+  let nmobj = concatMap (assoc texF) (zip unqtex textures)
   HT.fromList nmobj
 
 assoc ::
   [(String, String)] ->
   (String, Maybe TextureObject) ->
   [(String, Maybe TextureObject)]
-assoc list (c, d) = zip (fmap fst (Data.List.filter ((c ==) . snd) list)) (cycle [d])
+assoc list (c, d) = zip (fmap fst (Data.List.filter ((c ==) . snd) list)) (repeat d)
 
 -- - - - - - - - - - - - - - - - - - -
 -- reads the entire model
 
-readModel :: String -> Model -> IO (Model)
+readModel :: String -> Model -> IO Model
 readModel modelname weaponModel = do
   hash <-
     readMD3Textures
@@ -618,7 +600,7 @@ readModel modelname weaponModel = do
         AnimState
           { anims = loweranims,
             currentAnim = loweranims ! 8,
-            currentFrame = (startFrame (loweranims ! 8)),
+            currentFrame = startFrame (loweranims ! 8),
             nextFrame = 0,
             currentTime = 0,
             lastTime = 0
@@ -627,7 +609,7 @@ readModel modelname weaponModel = do
         AnimState
           { anims = upperanims,
             currentAnim = upperanims ! 6,
-            currentFrame = (startFrame (upperanims ! 6)),
+            currentFrame = startFrame (upperanims ! 6),
             nextFrame = 0,
             currentTime = 0,
             lastTime = 0
@@ -656,7 +638,7 @@ readModel modelname weaponModel = do
       }
 
 -- just returns an empty animation
-noAnims :: IO (IORef (AnimState))
+noAnims :: IO (IORef AnimState)
 noAnims = do
   let noanim =
         MD3Animation
@@ -682,8 +664,8 @@ noAnims = do
 
 readMD3 ::
   FilePath ->
-  (HT.BasicHashTable String (Maybe TextureObject)) ->
-  [(String, (MD3Model, IORef (AnimState)))] ->
+  HT.BasicHashTable String (Maybe TextureObject) ->
+  [(String, (MD3Model, IORef AnimState))] ->
   IO MD3Model
 readMD3 filePath hashtable lns = withBinaryFile filePath $ \handle -> do
   header <- readMD3Header handle
@@ -693,37 +675,37 @@ readMD3 filePath hashtable lns = withBinaryFile filePath $ \handle -> do
   let splittedTags = splitTags (numTags header) tag
   orderedlinks <- scanTag lns tag
   let trimmedTags = trimTags (fmap fst orderedlinks) splittedTags
-  let trimmedArray = listArray (0, ((length trimmedTags) -1)) trimmedTags
-  aux <- newIORef (Nothing)
-  aux2 <- newIORef (Nothing)
+  let trimmedArray = listArray (0, length trimmedTags -1) trimmedTags
+  aux <- newIORef Nothing
+  aux2 <- newIORef Nothing
   return
     MD3Model
       { numOfTags = numTags header,
         modelObjects = objs,
-        links = (fmap snd orderedlinks),
+        links = fmap snd orderedlinks,
         auxFunc = aux,
         auxFunc2 = aux2,
         tags = trimmedArray
       }
 
-scanTag :: [(String, (MD3Model, IORef (AnimState)))] -> [MD3Tag] -> IO [(Int, (MD3Model, IORef (AnimState)))]
+scanTag :: [(String, (MD3Model, IORef AnimState))] -> [MD3Tag] -> IO [(Int, (MD3Model, IORef AnimState))]
 scanTag [] _ = return []
 scanTag ((s, m) : sms) tgs = do
-  case (findIndex ((s ==) . tagName) tgs) of
+  case findIndex ((s ==) . tagName) tgs of
     Just x -> do
-      rest <- (scanTag sms tgs)
+      rest <- scanTag sms tgs
       return ((x, m) : rest)
 
 splitTags :: Int -> [MD3Tag] -> [[MD3Tag]]
 splitTags _ [] = []
-splitTags n tgs = (take n tgs) : (splitTags n $ drop n tgs)
+splitTags n tgs = take n tgs : splitTags n (drop n tgs)
 
 trimTags ::
   [Int] ->
   [[MD3Tag]] ->
   [[((Float, Float, Float), (Float, Float, Float, Float))]]
 trimTags _ [] = []
-trimTags n (t : ts) = (fmap (getTagpos . (t !!)) n) : (trimTags n ts)
+trimTags n (t : ts) = fmap (getTagpos . (t !!)) n : trimTags n ts
   where
     getTagpos u = (tagPos u, rotation u)
 
@@ -734,8 +716,8 @@ readWeaponModel :: FilePath -> FilePath -> IO Model
 readWeaponModel filePath shader = do
   weapon <- readWeapon filePath shader
   anim <- noAnims
-  p <- newIORef (Nothing)
-  wf <- newIORef (Nothing)
+  p <- newIORef Nothing
+  wf <- newIORef Nothing
   return
     Model
       { modelRef = weapon,
@@ -748,7 +730,7 @@ readWeaponModel filePath shader = do
 readWeapon :: FilePath -> FilePath -> IO MD3Model
 readWeapon filePath shader = withBinaryFile filePath $ \handle -> do
   header <- readMD3Header handle
-  weaponTex <- (readMD3Shader shader)
+  weaponTex <- readMD3Shader shader
   texObj <- mapM getAndCreateTexture (fmap ("tga/models/weapons/" ++) weaponTex)
   _ <- readBones handle header
   _ <- readTags handle header
@@ -756,8 +738,8 @@ readWeapon filePath shader = withBinaryFile filePath $ \handle -> do
   objs <- readMeshes handle header hash1
   let objs2 = fmap attachTex (zip texObj objs)
   let emptyList = listArray (0, 0) []
-  aux <- newIORef (Nothing)
-  aux2 <- newIORef (Nothing)
+  aux <- newIORef Nothing
+  aux2 <- newIORef Nothing
   return
     MD3Model
       { numOfTags = 0,
@@ -796,18 +778,17 @@ attachTex (texObj, object) =
 readMeshes ::
   Handle ->
   MD3Header ->
-  (HT.BasicHashTable String (Maybe TextureObject)) ->
+  HT.BasicHashTable String (Maybe TextureObject) ->
   IO [MeshObject]
 readMeshes handle header hashTable = do
   posn <- hTell handle
-  meshObjects <- readMeshData handle posn (numMeshes header) hashTable
-  return meshObjects
+  readMeshData handle posn (numMeshes header) hashTable
 
 readMeshData ::
   Handle ->
   Integer ->
   Int ->
-  (HT.BasicHashTable String (Maybe TextureObject)) ->
+  HT.BasicHashTable String (Maybe TextureObject) ->
   IO [MeshObject]
 readMeshData handle posn meshesLeft hashTable
   | meshesLeft <= 0 = return []
@@ -817,12 +798,12 @@ readMeshData handle posn meshesLeft hashTable
     faces <- readFaces handle posn header
     texcoords <- readTexCoords handle posn header
     vertices <- readVertices handle posn header
-    hSeek handle AbsoluteSeek (posn + (fromIntegral (meshSize header)))
+    hSeek handle AbsoluteSeek (posn + fromIntegral (meshSize header))
     object <- convertMesh header faces texcoords vertices hashTable
     objects <-
       readMeshData
         handle
-        (posn + (fromIntegral (meshSize header)))
+        (posn + fromIntegral (meshSize header))
         (meshesLeft -1)
         hashTable
     return (object : objects)
@@ -836,20 +817,20 @@ convertMesh ::
   [MD3Face] ->
   [MD3TexCoord] ->
   [MD3Vertex] ->
-  (HT.BasicHashTable String (Maybe TextureObject)) ->
+  HT.BasicHashTable String (Maybe TextureObject) ->
   IO MeshObject
 convertMesh header faceIndex texcoords vertices hashTable = do
   let verts = fmap vert vertices
   let scaledVerts = fmap devideBy64 verts
   let keyframes = devideIntoKeyframes (numVertices header) scaledVerts
 
-  imPTR <- mapM (Foreign.Marshal.Array.newArray) (fmap convertVert keyframes)
-  let facesArrayp = listArray (0, ((length imPTR) -1)) imPTR
+  imPTR <- mapM Foreign.Marshal.Array.newArray (fmap convertVert keyframes)
+  let facesArrayp = listArray (0, length imPTR -1) imPTR
 
   uvs <- convertTex faceIndex texcoords
   uvptr <- Foreign.Marshal.Array.newArray (convertTex2 texcoords)
   indces <- Foreign.Marshal.Array.newArray (convertInd faceIndex)
-  vPtr <- mallocBytes ((length (head keyframes)) * 12)
+  vPtr <- mallocBytes (length (head keyframes) * 12)
 
   [a] <- genObjectNames 1
   {-bindBuffer ArrayBuffer $= Just a
@@ -878,8 +859,8 @@ convertMesh header faceIndex texcoords vertices hashTable = do
   tex <- HT.lookup hashTable (strName header)
   return
     MeshObject
-      { numOfVerts = (length (head keyframes)) * 3,
-        numOfFaces = 3 * (fromIntegral (numTriangles header)),
+      { numOfVerts = length (head keyframes) * 3,
+        numOfFaces = 3 * fromIntegral (numTriangles header),
         numTexVertex = numVertices header,
         materialID = fromJust tex,
         bHasTexture = False,
@@ -889,7 +870,7 @@ convertMesh header faceIndex texcoords vertices hashTable = do
         texCoords = uvptr,
         texCoordsl = uvs,
         vertPtr = vPtr,
-        numIndices = fromIntegral ((numTriangles header) * 3),
+        numIndices = fromIntegral (numTriangles header * 3),
         vertIndex = indces,
         indexBuf = c,
         texBuf = b,
@@ -898,23 +879,22 @@ convertMesh header faceIndex texcoords vertices hashTable = do
 
 convertInd :: [(Int, Int, Int)] -> [CInt]
 convertInd [] = []
-convertInd ((i1, i2, i3) : is) =
-  [fromIntegral i1, fromIntegral i2, fromIntegral i3] ++ (convertInd is)
+convertInd ((i1, i2, i3) : is) = [fromIntegral i1, fromIntegral i2, fromIntegral i3] ++ convertInd is
 
 convertTex2 :: [(Float, Float)] -> [Float]
 convertTex2 [] = []
-convertTex2 ((u, v) : uvs) = [u, v] ++ (convertTex2 uvs)
+convertTex2 ((u, v) : uvs) = [u, v] ++ convertTex2 uvs
 
 convertVert :: [(Float, Float, Float)] -> [Float]
 convertVert [] = []
-convertVert ((x, y, z) : xyzs) = [x, y, z] ++ (convertVert xyzs)
+convertVert ((x, y, z) : xyzs) = [x, y, z] ++ convertVert xyzs
 
 convertTex ::
   [(Int, Int, Int)] ->
   [(Float, Float)] ->
   IO [((Float, Float), (Float, Float), (Float, Float))]
 convertTex indces uvs = do
-  let uvarray = listArray (0, ((length uvs) -1)) uvs
+  let uvarray = listArray (0, length uvs -1) uvs
   let uv = fmap (getUVs uvarray) indces
   return uv
 
@@ -929,8 +909,7 @@ devideIntoKeyframes ::
   [(Float, Float, Float)] ->
   [[(Float, Float, Float)]]
 devideIntoKeyframes _ [] = []
-devideIntoKeyframes n verts =
-  (take n verts) : (devideIntoKeyframes n (drop n verts))
+devideIntoKeyframes n verts = take n verts : devideIntoKeyframes n (drop n verts)
 
 devideBy64 :: (Float, Float, Float) -> (Float, Float, Float)
 devideBy64 (x, y, z) = (x / 64, y / 64, z / 64)
@@ -941,10 +920,10 @@ devideBy64 (x, y, z) = (x / 64, y / 64, z / 64)
 readVertices ::
   Handle -> Integer -> MD3MeshHeader -> IO [MD3Vertex]
 readVertices handle posn header = do
-  hSeek handle AbsoluteSeek (posn + (fromIntegral (vertexStart header)))
-  buf <- mallocBytes ((numMeshFrames header) * (numVertices header) * 8)
-  _ <- hGetBuf handle buf ((numMeshFrames header) * (numVertices header) * 8)
-  let ptrs = getPtrs buf ((numMeshFrames header) * (numVertices header)) 8
+  hSeek handle AbsoluteSeek (posn + fromIntegral (vertexStart header))
+  buf <- mallocBytes (numMeshFrames header * numVertices header * 8)
+  _ <- hGetBuf handle buf (numMeshFrames header * numVertices header * 8)
+  let ptrs = getPtrs buf (numMeshFrames header * numVertices header) 8
   triangles <- mapM readVertex ptrs
   free buf
   return triangles
@@ -964,9 +943,9 @@ readVertex ptr = do
 
 readTexCoords :: Handle -> Integer -> MD3MeshHeader -> IO [MD3TexCoord]
 readTexCoords handle posn header = do
-  hSeek handle AbsoluteSeek (posn + (fromIntegral (uvStart header)))
-  buf <- mallocBytes ((numVertices header) * 8)
-  _ <- hGetBuf handle buf ((numVertices header) * 8)
+  hSeek handle AbsoluteSeek (posn + fromIntegral (uvStart header))
+  buf <- mallocBytes (numVertices header * 8)
+  _ <- hGetBuf handle buf (numVertices header * 8)
   let ptrs = getPtrs buf (numVertices header) 8
   texcoords <- mapM readTexCoord ptrs
   free buf
@@ -983,8 +962,8 @@ readTexCoord ptr = do
 readFaces :: Handle -> Integer -> MD3MeshHeader -> IO [MD3Face]
 readFaces handle posn header = do
   hSeek handle AbsoluteSeek (posn + fromIntegral (triStart header))
-  buf <- mallocBytes ((numTriangles header) * 12)
-  _ <- hGetBuf handle buf ((numTriangles header) * 12)
+  buf <- mallocBytes (numTriangles header * 12)
+  _ <- hGetBuf handle buf (numTriangles header * 12)
   let ptrs = getPtrs buf (numTriangles header) 12
   faces <- mapM readFace ptrs
   free buf
@@ -1000,17 +979,15 @@ readFace ptr = do
 
 readSkins :: Handle -> MD3MeshHeader -> IO [String]
 readSkins handle header = do
-  buf <- mallocBytes ((numSkins header) * 68)
-  _ <- hGetBuf handle buf ((numSkins header) * 68)
+  buf <- mallocBytes (numSkins header * 68)
+  _ <- hGetBuf handle buf (numSkins header * 68)
   let skinPtrs = getPtrs buf (numSkins header) 68
   skins <- mapM readSkin skinPtrs
   free buf
   return skins
 
 readSkin :: Ptr a -> IO String
-readSkin buf = do
-  skin <- getString buf 68
-  return skin
+readSkin buf = getString buf 68
 
 -- - - - - - - - - - - - - - - - - - -
 -- reads a meshheader
@@ -1043,9 +1020,9 @@ readMD3MeshHeader handle = do
 
 readTags :: Handle -> MD3Header -> IO [MD3Tag]
 readTags handle header = do
-  buf <- mallocBytes (112 * (numFrames header) * (numTags header))
-  _ <- hGetBuf handle buf (112 * (numFrames header) * (numTags header))
-  let ptrs = getPtrs buf ((numFrames header) * (numTags header)) 112
+  buf <- mallocBytes (112 * numFrames header * numTags header)
+  _ <- hGetBuf handle buf (112 * numFrames header * numTags header)
+  let ptrs = getPtrs buf (numFrames header * numTags header) 112
   tgs <- mapM readTag ptrs
   free buf
   return tgs
@@ -1067,8 +1044,8 @@ readTag buf = do
 
 readBones :: Handle -> MD3Header -> IO [MD3Bone]
 readBones handle header = do
-  buf <- mallocBytes (56 * (numFrames header))
-  _ <- hGetBuf handle buf (56 * (numFrames header))
+  buf <- mallocBytes (56 * numFrames header)
+  _ <- hGetBuf handle buf (56 * numFrames header)
   let ptrs = getPtrs buf (numFrames header) 56
   bones <- mapM readBone ptrs
   free buf
@@ -1099,73 +1076,65 @@ readAnimations filepath = withBinaryFile filepath $ \handle -> do
   let upperAnims = Data.List.filter (matchPrefix "TORSO") anms
   let lowerAnims = Data.List.filter (matchPrefix "LEGS") anms
   let bothAnims = Data.List.filter (matchPrefix "BOTH") anms
-  let fixedLower =
-        fmap
-          ( fixLower $
-              (startFrame $ head lowerAnims)
-                - (startFrame $ head upperAnims)
-          )
-          lowerAnims
+  let fixedLower = fmap (fixLower $ startFrame (head lowerAnims) - startFrame (head upperAnims)) lowerAnims
   return
     ( listArray
-        (0, ((length (bothAnims ++ upperAnims)) -1))
+        (0, length (bothAnims ++ upperAnims) -1)
         (bothAnims ++ upperAnims),
       listArray
-        (0, ((length (bothAnims ++ fixedLower)) -1))
+        (0, length (bothAnims ++ fixedLower) -1)
         (bothAnims ++ fixedLower)
     )
 
 readAnimation :: String -> IO [MD3Animation]
 readAnimation line
-  | length subStrings <= 0 = do
-    return []
+  | null subStrings = return []
   | length subStrings >= 5 =
-    case (elem (subStrings !! 4) animList) of
-      True -> do
-        let startF = (read $ subStrings !! 0) :: Int
-        let numF = (read $ subStrings !! 1) :: Int
-        let loopF = (read $ subStrings !! 2) :: Int
-        let f = (read $ subStrings !! 3) :: Int
-        let aName = subStrings !! 4
-        return
-          [ MD3Animation
-              { animName = aName,
-                startFrame = startF,
-                endFrame = startF + numF,
-                loopFrames = loopF,
-                fp = 1000 * (1 / realToFrac f)
-              }
-          ]
-      _ -> return []
+    if (subStrings !! 4) `elem` animList
+      then
+        ( do
+            let startF = (read $ head subStrings) :: Int
+            let numF = (read $ subStrings !! 1) :: Int
+            let loopF = (read $ subStrings !! 2) :: Int
+            let f = (read $ subStrings !! 3) :: Int
+            let aName = subStrings !! 4
+            return
+              [ MD3Animation
+                  { animName = aName,
+                    startFrame = startF,
+                    endFrame = startF + numF,
+                    loopFrames = loopF,
+                    fp = 1000 * (1 / realToFrac f)
+                  }
+              ]
+        )
+      else return []
   | otherwise = do
     return []
   where
     replc str = fmap (replace' ['/', '\n', '\r']) str
-    subStrings = (words (replc line))
+    subStrings = words (replc line)
 
 fixLower :: Int -> MD3Animation -> MD3Animation
 fixLower offset anim =
   MD3Animation
     { animName = animName anim,
-      startFrame = (startFrame anim) - offset,
-      endFrame = (endFrame anim) - offset,
+      startFrame = startFrame anim - offset,
+      endFrame = endFrame anim - offset,
       loopFrames = loopFrames anim,
       fp = fp anim
     }
 
 matchPrefix :: String -> MD3Animation -> Bool
-matchPrefix prefix anim =
-  prefix == head (words (fmap (replace' ['_']) (animName anim)))
+matchPrefix prefix anim = prefix == head (words (fmap (replace' ['_']) (animName anim)))
 
 readLines :: Handle -> IO [String]
-readLines handle = do
-  eof <- hIsEOF handle
-  case (eof) of
-    False -> do
-      lne <- hGetLine handle
-      lnes <- readLines handle
-      return (lne : lnes)
-    _ -> return []
+readLines handle = hIsEOF handle >>= \case
+  False -> do
+    lne <- hGetLine handle
+    lnes <- readLines handle
+    return (lne : lnes)
+  _ -> return []
 
 -------------------------------------------------------------------------------
 
@@ -1173,10 +1142,10 @@ withBinaryFile :: FilePath -> (Handle -> IO a) -> IO a
 withBinaryFile filePath = bracket (openBinaryFile filePath ReadMode) hClose
 
 toInts :: (Integral a) => [a] -> [Int]
-toInts a = fmap fromIntegral a
+toInts = fmap fromIntegral
 
 toFloats :: (Real a) => [a] -> [Float]
-toFloats a = fmap realToFrac a
+toFloats = fmap realToFrac
 
 getInts :: Ptr a -> Int -> IO [Int]
 getInts ptr n = do
@@ -1189,9 +1158,7 @@ getFloats ptr n = do
   return $ toFloats floats
 
 getString :: Ptr a -> Int -> IO String
-getString ptr _ = do
-  string <- peekCString (castPtr ptr :: Ptr CChar)
-  return string
+getString ptr _ = peekCString (castPtr ptr :: Ptr CChar)
 
 getPtrs :: Ptr a -> Int -> Int -> [Ptr a]
-getPtrs ptr lngth size = fmap ((plusPtr ptr) . (size *)) [0 .. (lngth -1)]
+getPtrs ptr lngth size = fmap (plusPtr ptr . (size *)) [0 .. (lngth -1)]

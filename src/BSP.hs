@@ -1,5 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
-
 {- BSP.hs; Mun Hon Cheong (mhch295@cse.unsw.edu.au) 2005
 
 A module for loading Quake 3 BSP files
@@ -1026,13 +1024,13 @@ toFloats :: (Real a) => [a] -> [Float]
 toFloats = map realToFrac
 
 get2t :: [a] -> (a, a)
-get2t list = (list !! 0, list !! 1)
+get2t list = (head list, list !! 1)
 
 get3t :: [a] -> (a, a, a)
-get3t list = (list !! 0, list !! 1, list !! 2)
+get3t list = (head list, list !! 1, list !! 2)
 
 get4t :: [a] -> (a, a, a, a)
-get4t list = (list !! 0, list !! 1, list !! 2, list !! 3)
+get4t list = (head list, list !! 1, list !! 2, list !! 3)
 
 toBools :: [Word8] -> [Bool]
 toBools list =

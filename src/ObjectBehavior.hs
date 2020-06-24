@@ -18,68 +18,67 @@ ray ::
   ILKey ->
   Object
 ray (!x, !y, !z) (!vx, !vy, !vz) firedfrom iD =
-  ( arr
-      ( \oi ->
-          let clippedPos = oiCollisionPos oi
-           in let grounded = oiOnLand oi in ((), (clippedPos, grounded))
-      )
-      >>> ( first (after 0.25 ())
-              >>> arr
-                ( \(timeout, (clippedPos, grounded)) ->
-                    (grounded, (clippedPos, timeout))
-                )
-          )
-      >>> ( first ((iPre False) <<< identity)
-              >>> arr
-                ( \(cl, (clippedPos, timeout)) ->
-                    let (vvx, vvy, vvz) = normalise $ vectorSub end start
-                     in (clippedPos, (cl, timeout, vvx, vvy, vvz))
-                )
-          )
-      >>> ( first ((iPre start) <<< (arr not0))
-              >>> arr
-                ( \(clip, (cl, timeout, vvx, vvy, vvz)) ->
-                    (vvx, (cl, clip, timeout, vvy, vvz))
-                )
-          )
-      >>> ( first (arr (\vvx -> 7500 * vvx) >>> integral)
-              >>> arr
-                ( \(ucx, (cl, clip, timeout, vvy, vvz)) ->
-                    (vvy, (cl, clip, timeout, ucx, vvz))
-                )
-          )
-      >>> ( first (arr (\vvy -> 7500 * vvy) >>> integral)
-              >>> arr
-                ( \(ucy, (cl, clip, timeout, ucx, vvz)) ->
-                    (vvz, (cl, clip, timeout, ucx, ucy))
-                )
-          )
-      >>> ( first (arr (\vvz -> 7500 * vvz) >>> integral)
-              >>> arr
-                ( \(ucz, (cl, clip, timeout, ucx, ucy)) ->
-                    (cl, (cl, clip, timeout, ucx, ucy, ucz))
-                )
-          )
-      >>> ( first edge
-              >>> arr
-                ( \(clipev, (cl, clip, timeout, ucx, ucy, ucz)) ->
-                    ObjOutput
-                      { ooObsObjState =
-                          OOSRay
-                            { rayStart = start,
-                              rayEnd = clip,
-                              rayUC = vectorAdd start (ucx, ucy, ucz),
-                              clipped = cl,
-                              firedFrom = firedfrom
-                            },
-                        ooKillReq = timeout,
-                        ooSpawnReq = noEvent,
-                        ooSendMessage =
-                          clipev `tag` [(firedfrom, (iD, Coord clip))]
-                      }
-                )
-          )
-  )
+  arr
+    ( \oi ->
+        let clippedPos = oiCollisionPos oi
+         in let grounded = oiOnLand oi in ((), (clippedPos, grounded))
+    )
+    >>> ( first (after 0.25 ())
+            >>> arr
+              ( \(timeout, (clippedPos, grounded)) ->
+                  (grounded, (clippedPos, timeout))
+              )
+        )
+    >>> ( first (iPre False <<< identity)
+            >>> arr
+              ( \(cl, (clippedPos, timeout)) ->
+                  let (vvx, vvy, vvz) = normalise $ vectorSub end start
+                   in (clippedPos, (cl, timeout, vvx, vvy, vvz))
+              )
+        )
+    >>> ( first (iPre start <<< arr not0)
+            >>> arr
+              ( \(clip, (cl, timeout, vvx, vvy, vvz)) ->
+                  (vvx, (cl, clip, timeout, vvy, vvz))
+              )
+        )
+    >>> ( first (arr (7500 *) >>> integral)
+            >>> arr
+              ( \(ucx, (cl, clip, timeout, vvy, vvz)) ->
+                  (vvy, (cl, clip, timeout, ucx, vvz))
+              )
+        )
+    >>> ( first (arr (7500 *) >>> integral)
+            >>> arr
+              ( \(ucy, (cl, clip, timeout, ucx, vvz)) ->
+                  (vvz, (cl, clip, timeout, ucx, ucy))
+              )
+        )
+    >>> ( first (arr (7500 *) >>> integral)
+            >>> arr
+              ( \(ucz, (cl, clip, timeout, ucx, ucy)) ->
+                  (cl, (cl, clip, timeout, ucx, ucy, ucz))
+              )
+        )
+    >>> ( first edge
+            >>> arr
+              ( \(clipev, (cl, clip, timeout, ucx, ucy, ucz)) ->
+                  ObjOutput
+                    { ooObsObjState =
+                        OOSRay
+                          { rayStart = start,
+                            rayEnd = clip,
+                            rayUC = vectorAdd start (ucx, ucy, ucz),
+                            clipped = cl,
+                            firedFrom = firedfrom
+                          },
+                      ooKillReq = timeout,
+                      ooSpawnReq = noEvent,
+                      ooSendMessage =
+                        clipev `tag` [(firedfrom, (iD, Coord clip))]
+                    }
+              )
+        )
   where
     (start, end) = firePos (x, y, z) (vx, vy, vz)
     (_, _, _) = normalise $ vectorSub end start
@@ -89,51 +88,50 @@ ray (!x, !y, !z) (!vx, !vy, !vz) firedfrom iD =
 
 projectile :: (Vec3, Vec3) -> ILKey -> ILKey -> Object
 projectile ((sx, sy, sz), (vx, vy, vz)) firedfrom _ =
-  ( arr
-      ( \oi ->
-          let grounded = oiOnLand oi
-           in let hits = oiHit oi in (hits, grounded)
-      )
-      >>> (first identity >>> arr (\(hit, grounded) -> (grounded, hit)))
-      >>> ( (first ((iPre False) <<< identity) >>> first edge)
-              >>> arr (\(clipEv, hit) -> ((), (clipEv, hit)))
-          )
-      >>> ( first (arr (\() -> 1500 * vx) >>> imIntegral sx)
-              >>> arr (\(x, (clipEv, hit)) -> ((), (clipEv, hit, x)))
-          )
-      >>> ( first (arr (\() -> 1500 * vy) >>> imIntegral sy)
-              >>> arr (\(y, (clipEv, hit, x)) -> ((), (clipEv, hit, x, y)))
-          )
-      >>> ( first (arr (\() -> 1500 * vz) >>> imIntegral sz)
-              >>> arr
-                ( \(z, (clipEv, hit, x, y)) ->
-                    ((x, y, z), (clipEv, hit, x, y, z))
-                )
-          )
-      >>> ( first (iPre (sx, sy, sz) <<< identity)
-              >>> arr
-                ( \(oldpos, (clipEv, hit, x, y, z)) ->
-                    ((clipEv, hit), (oldpos, x, y, z))
-                )
-          )
-      >>> ( first
-              (arr (\(clipEv, hit) -> (isEvent clipEv || isEvent hit)) >>> edge)
-              >>> arr
-                ( \(hitEv, (oldpos, x, y, z)) ->
-                    ObjOutput
-                      { ooObsObjState =
-                          OOSProjectile
-                            { projectileOldPos = oldpos,
-                              projectileNewPos = (x, y, z),
-                              firedFrom = firedfrom
-                            },
-                        ooKillReq = hitEv,
-                        ooSpawnReq = noEvent,
-                        ooSendMessage = noEvent
-                      }
-                )
-          )
-  )
+  arr
+    ( \oi ->
+        let grounded = oiOnLand oi
+         in let hits = oiHit oi in (hits, grounded)
+    )
+    >>> (first identity >>> arr (\(hit, grounded) -> (grounded, hit)))
+    >>> ( (first (iPre False <<< identity) >>> first edge)
+            >>> arr (\(clipEv, hit) -> ((), (clipEv, hit)))
+        )
+    >>> ( first (arr (\() -> 1500 * vx) >>> imIntegral sx)
+            >>> arr (\(x, (clipEv, hit)) -> ((), (clipEv, hit, x)))
+        )
+    >>> ( first (arr (\() -> 1500 * vy) >>> imIntegral sy)
+            >>> arr (\(y, (clipEv, hit, x)) -> ((), (clipEv, hit, x, y)))
+        )
+    >>> ( first (arr (\() -> 1500 * vz) >>> imIntegral sz)
+            >>> arr
+              ( \(z, (clipEv, hit, x, y)) ->
+                  ((x, y, z), (clipEv, hit, x, y, z))
+              )
+        )
+    >>> ( first (iPre (sx, sy, sz) <<< identity)
+            >>> arr
+              ( \(oldpos, (clipEv, hit, x, y, z)) ->
+                  ((clipEv, hit), (oldpos, x, y, z))
+              )
+        )
+    >>> ( first
+            (arr (\(clipEv, hit) -> isEvent clipEv || isEvent hit) >>> edge)
+            >>> arr
+              ( \(hitEv, (oldpos, x, y, z)) ->
+                  ObjOutput
+                    { ooObsObjState =
+                        OOSProjectile
+                          { projectileOldPos = oldpos,
+                            projectileNewPos = (x, y, z),
+                            firedFrom = firedfrom
+                          },
+                      ooKillReq = hitEv,
+                      ooSpawnReq = noEvent,
+                      ooSendMessage = noEvent
+                    }
+              )
+        )
 
 camera ::
   Camera ->
@@ -142,471 +140,470 @@ camera ::
   ILKey ->
   Object
 camera cam _ _ iD =
-  ( arr
-      ( \oi ->
-          let gi = oiGameInput oi
-           in let clippedcam = oiCollision oi
-               in let grounded = oiOnLand oi
-                   in let msgs = oiMessage oi
-                       in (gi, (clippedcam, gi, grounded, msgs, oi))
-      )
-      >>> ( first ptrPos
-              >>> arr
-                ( \(pPos, (clippedcam, gi, grounded, msgs, oi)) ->
-                    (gi, (clippedcam, gi, grounded, msgs, oi, pPos))
-                )
-          )
-      >>> ( first (movementKS 400)
-              >>> arr
-                ( \(forwardVel, (clippedcam, gi, grounded, msgs, oi, pPos)) ->
-                    (gi, (clippedcam, forwardVel, gi, grounded, msgs, oi, pPos))
-                )
-          )
-      >>> ( first (strafeKS 400)
-              >>> arr
-                ( \( strafeVel,
-                     (clippedcam, forwardVel, gi, grounded, msgs, oi, pPos)
-                     ) ->
-                      ( gi,
-                        ( clippedcam,
-                          forwardVel,
-                          gi,
-                          grounded,
-                          msgs,
-                          oi,
-                          pPos,
-                          strafeVel
-                        )
-                      )
-                )
-          )
-      >>> ( first lbp
-              >>> arr
-                ( \( trigger,
-                     (clippedcam, forwardVel, gi, grounded, msgs, oi, pPos, strafeVel)
-                     ) ->
-                      ( gi,
-                        ( clippedcam,
-                          forwardVel,
-                          gi,
-                          grounded,
-                          msgs,
-                          oi,
-                          pPos,
-                          strafeVel,
-                          trigger
-                        )
-                      )
-                )
-          )
-      >>> ( first rbp
-              >>> arr
-                ( \( rtrigger,
-                     ( clippedcam,
-                       forwardVel,
-                       gi,
-                       grounded,
-                       msgs,
-                       oi,
-                       pPos,
-                       strafeVel,
-                       trigger
-                       )
-                     ) ->
-                      ( gi,
-                        ( clippedcam,
-                          forwardVel,
-                          gi,
-                          grounded,
-                          msgs,
-                          oi,
-                          pPos,
-                          rtrigger,
-                          strafeVel,
-                          trigger
-                        )
-                      )
-                )
-          )
-      >>> ( first getDt
-              >>> arr
-                ( \( dt,
-                     ( clippedcam,
-                       forwardVel,
-                       gi,
-                       grounded,
-                       msgs,
-                       oi,
-                       pPos,
-                       rtrigger,
-                       strafeVel,
-                       trigger
-                       )
-                     ) ->
-                      ( (clippedcam, pPos),
-                        ( clippedcam,
-                          dt,
-                          forwardVel,
-                          gi,
-                          grounded,
-                          msgs,
-                          oi,
-                          rtrigger,
-                          strafeVel,
-                          trigger
-                        )
-                      )
-                )
-          )
-      >>> ( first
-              ( arr (\(clippedcam, pPos) -> (pPos, clippedcam))
-                  >>> ((iPre cam) <<< (arr setView))
+  arr
+    ( \oi ->
+        let gi = oiGameInput oi
+         in let clippedcam = oiCollision oi
+             in let grounded = oiOnLand oi
+                 in let msgs = oiMessage oi
+                     in (gi, (clippedcam, gi, grounded, msgs, oi))
+    )
+    >>> ( first ptrPos
+            >>> arr
+              ( \(pPos, (clippedcam, gi, grounded, msgs, oi)) ->
+                  (gi, (clippedcam, gi, grounded, msgs, oi, pPos))
               )
-              >>> arr
-                ( \( cam1,
-                     ( clippedcam,
-                       dt,
-                       forwardVel,
-                       gi,
-                       grounded,
-                       msgs,
-                       oi,
-                       rtrigger,
-                       strafeVel,
-                       trigger
-                       )
-                     ) ->
-                      ( (cam1, dt, forwardVel),
-                        ( cam1,
-                          clippedcam,
-                          dt,
-                          gi,
-                          grounded,
-                          msgs,
-                          oi,
-                          rtrigger,
-                          strafeVel,
-                          trigger
-                        )
-                      )
-                )
-          )
-      >>> ( first
-              ( arr (\(cam1, dt, forwardVel) -> (forwardVel * dt, cam1))
-                  >>> moves
+        )
+    >>> ( first (movementKS 400)
+            >>> arr
+              ( \(forwardVel, (clippedcam, gi, grounded, msgs, oi, pPos)) ->
+                  (gi, (clippedcam, forwardVel, gi, grounded, msgs, oi, pPos))
               )
-              >>> arr
-                ( \( cam2,
-                     ( cam1,
-                       clippedcam,
-                       dt,
-                       gi,
-                       grounded,
-                       msgs,
-                       oi,
-                       rtrigger,
-                       strafeVel,
-                       trigger
-                       )
-                     ) ->
-                      ( (cam2, dt, strafeVel),
-                        (cam1, clippedcam, gi, grounded, msgs, oi, rtrigger, trigger)
+        )
+    >>> ( first (strafeKS 400)
+            >>> arr
+              ( \( strafeVel,
+                   (clippedcam, forwardVel, gi, grounded, msgs, oi, pPos)
+                   ) ->
+                    ( gi,
+                      ( clippedcam,
+                        forwardVel,
+                        gi,
+                        grounded,
+                        msgs,
+                        oi,
+                        pPos,
+                        strafeVel
                       )
-                )
-          )
-      >>> ( first
-              ( arr (\(cam2, dt, strafeVel) -> (strafeVel * dt, cam2))
-                  >>> strafes
+                    )
               )
-              >>> arr
-                ( \( cam3,
-                     (cam1, clippedcam, gi, grounded, msgs, oi, rtrigger, trigger)
-                     ) ->
-                      ( (gi, grounded),
-                        (cam1, cam3, clippedcam, msgs, oi, rtrigger, trigger)
+        )
+    >>> ( first lbp
+            >>> arr
+              ( \( trigger,
+                   (clippedcam, forwardVel, gi, grounded, msgs, oi, pPos, strafeVel)
+                   ) ->
+                    ( gi,
+                      ( clippedcam,
+                        forwardVel,
+                        gi,
+                        grounded,
+                        msgs,
+                        oi,
+                        pPos,
+                        strafeVel,
+                        trigger
                       )
-                )
-          )
-      >>> ( first (arr (\(gi, grounded) -> (grounded, gi)) >>> fallingp)
-              >>> arr
-                ( \(yVel, (cam1, cam3, clippedcam, msgs, oi, rtrigger, trigger)) ->
-                    ((cam3, yVel), (cam1, clippedcam, msgs, oi, rtrigger, trigger))
-                )
-          )
-      >>> ( ( first (arr dropCam)
-                >>> loop
-                  ( arr
-                      ( \( (cam4, (cam1, clippedcam, msgs, oi, rtrigger, trigger)),
-                           msgn
-                           ) ->
-                            ( (msgn, msgs, rtrigger),
-                              (cam1, cam4, clippedcam, msgs, oi, rtrigger, trigger)
-                            )
-                      )
-                      >>> ( first
-                              ( arr
-                                  ( \(msgn, msgs, rtrigger) ->
-                                      case isEvent rtrigger of
-                                        True -> ([], msgn)
-                                        False -> ((getMsg0 msgs msgn), msgn)
-                                  )
-                                  >>> ((iPre ([], [])) <<< identity)
-                              )
-                              >>> arr
-                                ( \( (msgn, msgi),
-                                     (cam1, cam4, clippedcam, msgs, oi, rtrigger, trigger)
-                                     ) ->
-                                      ( ( cam1,
-                                          cam4,
-                                          clippedcam,
-                                          msgi,
-                                          msgs,
-                                          oi,
-                                          rtrigger,
-                                          trigger
-                                        ),
-                                        msgn
-                                      )
-                                )
-                          )
-                  )
-            )
-              >>> arr
-                ( \(cam1, cam4, clippedcam, msgi, msgs, oi, rtrigger, trigger) ->
-                    (oi, (cam1, cam4, clippedcam, msgi, msgs, rtrigger, trigger))
-                )
-          )
-      >>> ( ( first (arr (\oi -> oiHit oi) >>> (iPre (noEvent) <<< identity))
-                >>> loop
-                  ( arr
-                      ( \( ( hitEv,
-                             (cam1, cam4, clippedcam, msgi, msgs, rtrigger, trigger)
-                             ),
-                           currentHealth
-                           ) ->
-                            ( (currentHealth, hitEv),
-                              (cam1, cam4, clippedcam, msgi, msgs, rtrigger, trigger)
-                            )
-                      )
-                      >>> ( first
-                              ( arr
-                                  ( \(currentHealth, hitEv) ->
-                                      case isEvent hitEv of
-                                        True -> currentHealth - (realToFrac (length (fromEvent hitEv) * 3))
-                                        False -> currentHealth
-                                  )
-                                  >>> (iPre 100 <<< identity)
-                              )
-                              >>> arr
-                                ( \( currentHealth,
-                                     ( cam1,
-                                       cam4,
-                                       clippedcam,
-                                       msgi,
-                                       msgs,
-                                       rtrigger,
-                                       trigger
-                                       )
-                                     ) ->
-                                      ( ( cam1,
-                                          cam4,
-                                          clippedcam,
-                                          currentHealth,
-                                          msgi,
-                                          msgs,
-                                          rtrigger,
-                                          trigger
-                                        ),
-                                        currentHealth
-                                      )
-                                )
-                          )
-                  )
-            )
-              >>> arr
-                ( \( cam1,
-                     cam4,
-                     clippedcam,
-                     currentHealth,
-                     msgi,
+                    )
+              )
+        )
+    >>> ( first rbp
+            >>> arr
+              ( \( rtrigger,
+                   ( clippedcam,
+                     forwardVel,
+                     gi,
+                     grounded,
                      msgs,
-                     rtrigger,
+                     oi,
+                     pPos,
+                     strafeVel,
                      trigger
-                     ) ->
-                      ( msgs,
-                        ( cam1,
-                          cam4,
-                          clippedcam,
-                          currentHealth,
-                          msgi,
-                          rtrigger,
-                          trigger
-                        )
+                     )
+                   ) ->
+                    ( gi,
+                      ( clippedcam,
+                        forwardVel,
+                        gi,
+                        grounded,
+                        msgs,
+                        oi,
+                        pPos,
+                        rtrigger,
+                        strafeVel,
+                        trigger
                       )
+                    )
+              )
+        )
+    >>> ( first getDt
+            >>> arr
+              ( \( dt,
+                   ( clippedcam,
+                     forwardVel,
+                     gi,
+                     grounded,
+                     msgs,
+                     oi,
+                     pPos,
+                     rtrigger,
+                     strafeVel,
+                     trigger
+                     )
+                   ) ->
+                    ( (clippedcam, pPos),
+                      ( clippedcam,
+                        dt,
+                        forwardVel,
+                        gi,
+                        grounded,
+                        msgs,
+                        oi,
+                        rtrigger,
+                        strafeVel,
+                        trigger
+                      )
+                    )
+              )
+        )
+    >>> ( first
+            ( arr (\(clippedcam, pPos) -> (pPos, clippedcam))
+                >>> (iPre cam <<< arr setView)
+            )
+            >>> arr
+              ( \( cam1,
+                   ( clippedcam,
+                     dt,
+                     forwardVel,
+                     gi,
+                     grounded,
+                     msgs,
+                     oi,
+                     rtrigger,
+                     strafeVel,
+                     trigger
+                     )
+                   ) ->
+                    ( (cam1, dt, forwardVel),
+                      ( cam1,
+                        clippedcam,
+                        dt,
+                        gi,
+                        grounded,
+                        msgs,
+                        oi,
+                        rtrigger,
+                        strafeVel,
+                        trigger
+                      )
+                    )
+              )
+        )
+    >>> ( first
+            ( arr (\(cam1, dt, forwardVel) -> (forwardVel * dt, cam1))
+                >>> moves
+            )
+            >>> arr
+              ( \( cam2,
+                   ( cam1,
+                     clippedcam,
+                     dt,
+                     gi,
+                     grounded,
+                     msgs,
+                     oi,
+                     rtrigger,
+                     strafeVel,
+                     trigger
+                     )
+                   ) ->
+                    ( (cam2, dt, strafeVel),
+                      (cam1, clippedcam, gi, grounded, msgs, oi, rtrigger, trigger)
+                    )
+              )
+        )
+    >>> ( first
+            ( arr (\(cam2, dt, strafeVel) -> (strafeVel * dt, cam2))
+                >>> strafes
+            )
+            >>> arr
+              ( \( cam3,
+                   (cam1, clippedcam, gi, grounded, msgs, oi, rtrigger, trigger)
+                   ) ->
+                    ( (gi, grounded),
+                      (cam1, cam3, clippedcam, msgs, oi, rtrigger, trigger)
+                    )
+              )
+        )
+    >>> ( first (arr (\(gi, grounded) -> (grounded, gi)) >>> fallingp)
+            >>> arr
+              ( \(yVel, (cam1, cam3, clippedcam, msgs, oi, rtrigger, trigger)) ->
+                  ((cam3, yVel), (cam1, clippedcam, msgs, oi, rtrigger, trigger))
+              )
+        )
+    >>> ( ( first (arr dropCam)
+              >>> loop
+                ( arr
+                    ( \( (cam4, (cam1, clippedcam, msgs, oi, rtrigger, trigger)),
+                         msgn
+                         ) ->
+                          ( (msgn, msgs, rtrigger),
+                            (cam1, cam4, clippedcam, msgs, oi, rtrigger, trigger)
+                          )
+                    )
+                    >>> ( first
+                            ( arr
+                                ( \(msgn, msgs, rtrigger) ->
+                                    if isEvent rtrigger
+                                      then ([], msgn)
+                                      else (getMsg0 msgs msgn, msgn)
+                                )
+                                >>> (iPre ([], []) <<< identity)
+                            )
+                            >>> arr
+                              ( \( (msgn, msgi),
+                                   (cam1, cam4, clippedcam, msgs, oi, rtrigger, trigger)
+                                   ) ->
+                                    ( ( cam1,
+                                        cam4,
+                                        clippedcam,
+                                        msgi,
+                                        msgs,
+                                        oi,
+                                        rtrigger,
+                                        trigger
+                                      ),
+                                      msgn
+                                    )
+                              )
+                        )
                 )
           )
-      >>> ( ( first ((iPre noEvent) <<< identity)
-                >>> loop
-                  ( arr
-                      ( \( ( msges,
-                             ( cam1,
-                               cam4,
-                               clippedcam,
-                               currentHealth,
-                               msgi,
-                               rtrigger,
-                               trigger
-                               )
-                             ),
-                           kills
-                           ) ->
-                            ( (kills, msges),
-                              ( cam1,
-                                cam4,
-                                clippedcam,
-                                currentHealth,
-                                msges,
-                                msgi,
-                                rtrigger,
-                                trigger
-                              )
-                            )
-                      )
-                      >>> ( first
-                              ( arr
-                                  ( \(kills, msges) ->
-                                      kills + (length (findKills (event2List msges)))
-                                  )
-                                  >>> ((iPre 0) <<< identity)
-                              )
-                              >>> arr
-                                ( \( kills,
-                                     ( cam1,
-                                       cam4,
-                                       clippedcam,
-                                       currentHealth,
-                                       msges,
-                                       msgi,
-                                       rtrigger,
-                                       trigger
-                                       )
-                                     ) ->
-                                      ( ( cam1,
-                                          cam4,
-                                          clippedcam,
-                                          currentHealth,
-                                          kills,
-                                          msges,
-                                          msgi,
-                                          rtrigger,
-                                          trigger
-                                        ),
-                                        kills
-                                      )
-                                )
+            >>> arr
+              ( \(cam1, cam4, clippedcam, msgi, msgs, oi, rtrigger, trigger) ->
+                  (oi, (cam1, cam4, clippedcam, msgi, msgs, rtrigger, trigger))
+              )
+        )
+    >>> ( ( first (arr oiHit >>> (iPre noEvent <<< identity))
+              >>> loop
+                ( arr
+                    ( \( ( hitEv,
+                           (cam1, cam4, clippedcam, msgi, msgs, rtrigger, trigger)
+                           ),
+                         currentHealth
+                         ) ->
+                          ( (currentHealth, hitEv),
+                            (cam1, cam4, clippedcam, msgi, msgs, rtrigger, trigger)
                           )
-                  )
+                    )
+                    >>> ( first
+                            ( arr
+                                ( \(currentHealth, hitEv) ->
+                                    if isEvent hitEv
+                                      then currentHealth - realToFrac (length (fromEvent hitEv) * 3)
+                                      else currentHealth
+                                )
+                                >>> (iPre 100 <<< identity)
+                            )
+                            >>> arr
+                              ( \( currentHealth,
+                                   ( cam1,
+                                     cam4,
+                                     clippedcam,
+                                     msgi,
+                                     msgs,
+                                     rtrigger,
+                                     trigger
+                                     )
+                                   ) ->
+                                    ( ( cam1,
+                                        cam4,
+                                        clippedcam,
+                                        currentHealth,
+                                        msgi,
+                                        msgs,
+                                        rtrigger,
+                                        trigger
+                                      ),
+                                      currentHealth
+                                    )
+                              )
+                        )
+                )
+          )
+            >>> arr
+              ( \( cam1,
+                   cam4,
+                   clippedcam,
+                   currentHealth,
+                   msgi,
+                   msgs,
+                   rtrigger,
+                   trigger
+                   ) ->
+                    ( msgs,
+                      ( cam1,
+                        cam4,
+                        clippedcam,
+                        currentHealth,
+                        msgi,
+                        rtrigger,
+                        trigger
+                      )
+                    )
+              )
+        )
+    >>> ( ( first (iPre noEvent <<< identity)
+              >>> loop
+                ( arr
+                    ( \( ( msges,
+                           ( cam1,
+                             cam4,
+                             clippedcam,
+                             currentHealth,
+                             msgi,
+                             rtrigger,
+                             trigger
+                             )
+                           ),
+                         kills
+                         ) ->
+                          ( (kills, msges),
+                            ( cam1,
+                              cam4,
+                              clippedcam,
+                              currentHealth,
+                              msges,
+                              msgi,
+                              rtrigger,
+                              trigger
+                            )
+                          )
+                    )
+                    >>> ( first
+                            ( arr
+                                ( \(kills, msges) ->
+                                    kills + length (findKills (event2List msges))
+                                )
+                                >>> (iPre 0 <<< identity)
+                            )
+                            >>> arr
+                              ( \( kills,
+                                   ( cam1,
+                                     cam4,
+                                     clippedcam,
+                                     currentHealth,
+                                     msges,
+                                     msgi,
+                                     rtrigger,
+                                     trigger
+                                     )
+                                   ) ->
+                                    ( ( cam1,
+                                        cam4,
+                                        clippedcam,
+                                        currentHealth,
+                                        kills,
+                                        msges,
+                                        msgi,
+                                        rtrigger,
+                                        trigger
+                                      ),
+                                      kills
+                                    )
+                              )
+                        )
+                )
+          )
+            >>> arr
+              ( \( cam1,
+                   cam4,
+                   clippedcam,
+                   currentHealth,
+                   kills,
+                   msges,
+                   msgi,
+                   rtrigger,
+                   trigger
+                   ) ->
+                    ( (msgi, rtrigger),
+                      ( cam1,
+                        cam4,
+                        clippedcam,
+                        currentHealth,
+                        kills,
+                        msges,
+                        trigger
+                      )
+                    )
+              )
+        )
+    >>> ( first
+            ( arr (\(msgi, rtrigger) -> (rtrigger, msgi))
+                >>> (iPre (noEvent, []) <<< identity)
             )
-              >>> arr
-                ( \( cam1,
+            >>> arr
+              ( \( (rev, msgi2),
+                   ( cam1,
                      cam4,
                      clippedcam,
                      currentHealth,
                      kills,
                      msges,
-                     msgi,
-                     rtrigger,
                      trigger
-                     ) ->
-                      ( (msgi, rtrigger),
-                        ( cam1,
-                          cam4,
-                          clippedcam,
-                          currentHealth,
-                          kills,
-                          msges,
-                          trigger
-                        )
+                     )
+                   ) ->
+                    ( clippedcam,
+                      ( cam1,
+                        cam4,
+                        currentHealth,
+                        kills,
+                        msges,
+                        msgi2,
+                        rev,
+                        trigger
                       )
-                )
-          )
-      >>> ( first
-              ( arr (\(msgi, rtrigger) -> (rtrigger, msgi))
-                  >>> ((iPre (noEvent, [])) <<< identity)
+                    )
               )
-              >>> arr
-                ( \( (rev, msgi2),
-                     ( cam1,
-                       cam4,
-                       clippedcam,
-                       currentHealth,
-                       kills,
-                       msges,
-                       trigger
-                       )
-                     ) ->
-                      ( clippedcam,
-                        ( cam1,
-                          cam4,
-                          currentHealth,
-                          kills,
-                          msges,
-                          msgi2,
-                          rev,
-                          trigger
-                        )
-                      )
-                )
-          )
-      >>> ( first ((iPre cam) <<< identity)
-              >>> arr
-                ( \( ccam,
-                     ( cam1,
-                       cam4,
-                       currentHealth,
-                       kills,
-                       msges,
-                       msgi2,
-                       rev,
-                       trigger
-                       )
-                     ) ->
-                      ObjOutput
-                        { ooSpawnReq = (trigger `tag` [ray (cpos cam1) (viewPos cam1) iD]),
-                          ooObsObjState =
-                            OOSCamera
-                              { newCam = cam4,
-                                oldCam = cam1,
-                                health = currentHealth,
-                                ammo = 100,
-                                score = kills,
-                                cood = if isEvent rev then reverse $ map getCoordFromMsg msgi2 else []
-                              },
-                          ooKillReq = noEvent,
-                          ooSendMessage =
-                            case event2List msges of
-                              [] -> noEvent
-                              _ ->
-                                Event ()
-                                  `tag` ( case findEnemies (event2List msges) of
-                                            [] -> []
-                                            _ ->
-                                              [ toTargetPosition
-                                                  iD
-                                                  (cpos ccam)
-                                                  ( head
-                                                      ( findEnemies
-                                                          ( event2List
-                                                              msges
-                                                          )
-                                                      )
-                                                  )
-                                              ]
-                                        )
-                        }
-                )
-          )
-  )
+        )
+    >>> ( first (iPre cam <<< identity)
+            >>> arr
+              ( \( ccam,
+                   ( cam1,
+                     cam4,
+                     currentHealth,
+                     kills,
+                     msges,
+                     msgi2,
+                     rev,
+                     trigger
+                     )
+                   ) ->
+                    ObjOutput
+                      { ooSpawnReq = trigger `tag` [ray (cpos cam1) (viewPos cam1) iD],
+                        ooObsObjState =
+                          OOSCamera
+                            { newCam = cam4,
+                              oldCam = cam1,
+                              health = currentHealth,
+                              ammo = 100,
+                              score = kills,
+                              cood = if isEvent rev then reverse $ map getCoordFromMsg msgi2 else []
+                            },
+                        ooKillReq = noEvent,
+                        ooSendMessage =
+                          case event2List msges of
+                            [] -> noEvent
+                            _ ->
+                              Event ()
+                                `tag` ( case findEnemies (event2List msges) of
+                                          [] -> []
+                                          _ ->
+                                            [ toTargetPosition
+                                                iD
+                                                (cpos ccam)
+                                                ( head
+                                                    ( findEnemies
+                                                        ( event2List
+                                                            msges
+                                                        )
+                                                    )
+                                                )
+                                            ]
+                                      )
+                      }
+              )
+        )
 
 event2List :: Event [a] -> [a]
 event2List ev
@@ -653,204 +650,141 @@ aicube ::
   ILKey ->
   Object
 aicube (x, y, z) size waypoints modelname (ua, la) iD =
-  ( ( ( arr (\oi -> let gi = oiGameInput oi in (gi, oi))
-          >>> first getT
-      )
-        >>> arr
-          ( \(t, oi) ->
-              let hitList = oiHit oi
-               in let enemySighted = oiVisibleObjs oi
-                   in (hitList, (enemySighted, hitList, oi, t))
-          )
+  ( ( arr (\oi -> let gi = oiGameInput oi in (gi, oi))
+        >>> first getT
     )
-      >>> ( first
-              ( arr
-                  ( \hitList ->
-                      if isEvent hitList
-                        then getFire (snd (head (fromEvent hitList)))
-                        else Nothing
-                  )
-                  >>> (iPre Nothing <<< identity)
+      >>> arr
+        ( \(t, oi) ->
+            let hitList = oiHit oi
+             in let enemySighted = oiVisibleObjs oi
+                 in (hitList, (enemySighted, hitList, oi, t))
+        )
+  )
+    >>> ( first
+            ( arr
+                ( \hitList ->
+                    if isEvent hitList
+                      then getFire (snd (head (fromEvent hitList)))
+                      else Nothing
+                )
+                >>> (iPre Nothing <<< identity)
+            )
+            >>> arr
+              ( \(hitSource, (enemySighted, hitList, oi, t)) ->
+                  (hitSource, (enemySighted, hitList, hitSource, oi, t))
               )
-              >>> arr
-                ( \(hitSource, (enemySighted, hitList, oi, t)) ->
-                    (hitSource, (enemySighted, hitList, hitSource, oi, t))
-                )
-          )
-      >>> ( ( first (arr isJust >>> edge)
-                >>> loop
-                  ( arr
-                      ( \( (hitev1, (enemySighted, hitList, hitSource, oi, t)),
-                           currentHealth
-                           ) ->
-                            ( (currentHealth, hitList),
-                              (enemySighted, hitSource, hitev1, oi, t)
-                            )
-                      )
-                      >>> ( first
-                              ( arr
-                                  (\(currentHealth, hitList) -> if isEvent hitList then currentHealth - 3 else currentHealth)
-                                  >>> (iPre 100 <<< identity)
-                              )
-                              >>> arr
-                                ( \(currentHealth, (enemySighted, hitSource, hitev1, oi, t)) ->
-                                    ( (currentHealth, enemySighted, hitSource, hitev1, oi, t),
-                                      currentHealth
-                                    )
-                                )
+        )
+    >>> ( ( first (arr isJust >>> edge)
+              >>> loop
+                ( arr
+                    ( \( (hitev1, (enemySighted, hitList, hitSource, oi, t)),
+                         currentHealth
+                         ) ->
+                          ( (currentHealth, hitList),
+                            (enemySighted, hitSource, hitev1, oi, t)
                           )
-                  )
-            )
-              >>> arr
-                ( \(currentHealth, enemySighted, hitSource, hitev1, oi, t) ->
-                    ( currentHealth,
-                      (currentHealth, enemySighted, hitSource, hitev1, oi, t)
                     )
-                )
-          )
-      >>> ( ( first (arr (<= 0) >>> edge)
-                >>> loop
-                  ( arr
-                      ( \( ( hitev,
-                             (currentHealth, enemySighted, hitSource, hitev1, oi, t)
-                             ),
-                           isDead
-                           ) ->
-                            ( (hitev, isDead),
-                              (currentHealth, enemySighted, hitSource, hitev, hitev1, oi, t)
+                    >>> ( first
+                            ( arr
+                                (\(currentHealth, hitList) -> if isEvent hitList then currentHealth - 3 else currentHealth)
+                                >>> (iPre 100 <<< identity)
                             )
-                      )
-                      >>> ( first
-                              ( arr (\(hitev, isDead) -> isEvent hitev || isDead)
-                                  >>> (iPre False <<< identity)
-                              )
-                              >>> arr
-                                ( \( isDead,
-                                     (currentHealth, enemySighted, hitSource, hitev, hitev1, oi, t)
-                                     ) ->
-                                      ( ( currentHealth,
-                                          enemySighted,
-                                          hitSource,
-                                          hitev,
-                                          hitev1,
-                                          isDead,
-                                          oi,
-                                          t
-                                        ),
-                                        isDead
-                                      )
-                                )
-                          )
-                  )
-            )
-              >>> arr
-                ( \( currentHealth,
-                     enemySighted,
-                     hitSource,
-                     hitev,
-                     hitev1,
-                     isDead,
-                     oi,
-                     t
-                     ) ->
-                      ( (enemySighted, isDead),
-                        ( currentHealth,
-                          enemySighted,
-                          hitSource,
-                          hitev,
-                          hitev1,
-                          isDead,
-                          oi,
-                          t
-                        )
-                      )
-                )
-          )
-      >>> ( ( ( first
-                  ( arr
-                      (\(enemySighted, isDead) -> isEvent enemySighted && not isDead)
-                      >>> (iPre noEvent <<< edge)
-                  )
-                  >>> loop
-                    ( arr
-                        ( \( ( enemyS,
-                               ( currentHealth,
-                                 enemySighted,
-                                 hitSource,
-                                 hitev,
-                                 hitev1,
-                                 isDead,
-                                 oi,
-                                 t
-                                 )
-                               ),
-                             enemy
-                             ) ->
-                              ( (enemy, enemySighted),
-                                ( currentHealth,
-                                  enemyS,
-                                  enemySighted,
-                                  hitSource,
-                                  hitev,
-                                  hitev1,
-                                  isDead,
-                                  oi,
-                                  t
-                                )
-                              )
-                        )
-                        >>> ( first
-                                ( arr (\(enemy, enemySighted) -> if isEvent enemySighted then enemySighted else enemy)
-                                    >>> (iPre noEvent <<< identity)
-                                )
-                                >>> arr
-                                  ( \( enemy,
-                                       ( currentHealth,
-                                         enemyS,
-                                         enemySighted,
-                                         hitSource,
-                                         hitev,
-                                         hitev1,
-                                         isDead,
-                                         oi,
-                                         t
-                                         )
-                                       ) ->
-                                        ( ( currentHealth,
-                                            enemy,
-                                            enemyS,
-                                            enemySighted,
-                                            hitSource,
-                                            hitev,
-                                            hitev1,
-                                            isDead,
-                                            oi,
-                                            t
-                                          ),
-                                          enemy
-                                        )
+                            >>> arr
+                              ( \(currentHealth, (enemySighted, hitSource, hitev1, oi, t)) ->
+                                  ( (currentHealth, enemySighted, hitSource, hitev1, oi, t),
+                                    currentHealth
                                   )
+                              )
+                        )
+                )
+          )
+            >>> arr
+              ( \(currentHealth, enemySighted, hitSource, hitev1, oi, t) ->
+                  ( currentHealth,
+                    (currentHealth, enemySighted, hitSource, hitev1, oi, t)
+                  )
+              )
+        )
+    >>> ( ( first (arr (<= 0) >>> edge)
+              >>> loop
+                ( arr
+                    ( \( ( hitev,
+                           (currentHealth, enemySighted, hitSource, hitev1, oi, t)
+                           ),
+                         isDead
+                         ) ->
+                          ( (hitev, isDead),
+                            (currentHealth, enemySighted, hitSource, hitev, hitev1, oi, t)
+                          )
+                    )
+                    >>> ( first
+                            ( arr (\(hitev, isDead) -> isEvent hitev || isDead)
+                                >>> (iPre False <<< identity)
                             )
+                            >>> arr
+                              ( \( isDead,
+                                   (currentHealth, enemySighted, hitSource, hitev, hitev1, oi, t)
+                                   ) ->
+                                    ( ( currentHealth,
+                                        enemySighted,
+                                        hitSource,
+                                        hitev,
+                                        hitev1,
+                                        isDead,
+                                        oi,
+                                        t
+                                      ),
+                                      isDead
+                                    )
+                              )
+                        )
+                )
+          )
+            >>> arr
+              ( \( currentHealth,
+                   enemySighted,
+                   hitSource,
+                   hitev,
+                   hitev1,
+                   isDead,
+                   oi,
+                   t
+                   ) ->
+                    ( (enemySighted, isDead),
+                      ( currentHealth,
+                        enemySighted,
+                        hitSource,
+                        hitev,
+                        hitev1,
+                        isDead,
+                        oi,
+                        t
+                      )
                     )
               )
+        )
+    >>> ( ( ( first
+                ( arr
+                    (\(enemySighted, isDead) -> isEvent enemySighted && not isDead)
+                    >>> (iPre noEvent <<< edge)
+                )
                 >>> loop
                   ( arr
-                      ( \( ( currentHealth,
-                             enemy,
-                             enemyS,
-                             enemySighted,
-                             hitSource,
-                             hitev,
-                             hitev1,
-                             isDead,
-                             oi,
-                             t
+                      ( \( ( enemyS,
+                             ( currentHealth,
+                               enemySighted,
+                               hitSource,
+                               hitev,
+                               hitev1,
+                               isDead,
+                               oi,
+                               t
+                               )
                              ),
-                           targ
+                           enemy
                            ) ->
-                            ( (enemySighted, targ),
+                            ( (enemy, enemySighted),
                               ( currentHealth,
-                                enemy,
                                 enemyS,
                                 enemySighted,
                                 hitSource,
@@ -863,18 +797,12 @@ aicube (x, y, z) size waypoints modelname (ua, la) iD =
                             )
                       )
                       >>> ( first
-                              ( arr
-                                  ( \(enemySighted, targ) ->
-                                      if isEvent enemySighted
-                                        then cpos (oldCam (snd (head (fromEvent enemySighted))))
-                                        else targ
-                                  )
-                                  >>> (iPre (0, 0, 0) <<< identity)
+                              ( arr (\(enemy, enemySighted) -> if isEvent enemySighted then enemySighted else enemy)
+                                  >>> (iPre noEvent <<< identity)
                               )
                               >>> arr
-                                ( \( targ,
+                                ( \( enemy,
                                      ( currentHealth,
-                                       enemy,
                                        enemyS,
                                        enemySighted,
                                        hitSource,
@@ -894,17 +822,118 @@ aicube (x, y, z) size waypoints modelname (ua, la) iD =
                                           hitev1,
                                           isDead,
                                           oi,
-                                          t,
-                                          targ
+                                          t
                                         ),
-                                        targ
+                                        enemy
                                       )
                                 )
                           )
                   )
             )
-              >>> arr
-                ( \( currentHealth,
+              >>> loop
+                ( arr
+                    ( \( ( currentHealth,
+                           enemy,
+                           enemyS,
+                           enemySighted,
+                           hitSource,
+                           hitev,
+                           hitev1,
+                           isDead,
+                           oi,
+                           t
+                           ),
+                         targ
+                         ) ->
+                          ( (enemySighted, targ),
+                            ( currentHealth,
+                              enemy,
+                              enemyS,
+                              enemySighted,
+                              hitSource,
+                              hitev,
+                              hitev1,
+                              isDead,
+                              oi,
+                              t
+                            )
+                          )
+                    )
+                    >>> ( first
+                            ( arr
+                                ( \(enemySighted, targ) ->
+                                    if isEvent enemySighted
+                                      then cpos (oldCam (snd (head (fromEvent enemySighted))))
+                                      else targ
+                                )
+                                >>> (iPre (0, 0, 0) <<< identity)
+                            )
+                            >>> arr
+                              ( \( targ,
+                                   ( currentHealth,
+                                     enemy,
+                                     enemyS,
+                                     enemySighted,
+                                     hitSource,
+                                     hitev,
+                                     hitev1,
+                                     isDead,
+                                     oi,
+                                     t
+                                     )
+                                   ) ->
+                                    ( ( currentHealth,
+                                        enemy,
+                                        enemyS,
+                                        enemySighted,
+                                        hitSource,
+                                        hitev,
+                                        hitev1,
+                                        isDead,
+                                        oi,
+                                        t,
+                                        targ
+                                      ),
+                                      targ
+                                    )
+                              )
+                        )
+                )
+          )
+            >>> arr
+              ( \( currentHealth,
+                   enemy,
+                   enemyS,
+                   enemySighted,
+                   hitSource,
+                   hitev,
+                   hitev1,
+                   isDead,
+                   oi,
+                   t,
+                   targ
+                   ) ->
+                    ( oi,
+                      ( currentHealth,
+                        enemy,
+                        enemyS,
+                        enemySighted,
+                        hitSource,
+                        hitev,
+                        hitev1,
+                        isDead,
+                        oi,
+                        t,
+                        targ
+                      )
+                    )
+              )
+        )
+    >>> ( first
+            (arr oiMessage >>> (iPre noEvent <<< identity))
+            >>> arr
+              ( \( msgs,
+                   ( currentHealth,
                      enemy,
                      enemyS,
                      enemySighted,
@@ -915,421 +944,388 @@ aicube (x, y, z) size waypoints modelname (ua, la) iD =
                      oi,
                      t,
                      targ
-                     ) ->
-                      ( oi,
-                        ( currentHealth,
-                          enemy,
-                          enemyS,
-                          enemySighted,
-                          hitSource,
-                          hitev,
-                          hitev1,
-                          isDead,
-                          oi,
-                          t,
-                          targ
-                        )
+                     )
+                   ) ->
+                    ( (isDead, msgs),
+                      ( currentHealth,
+                        enemy,
+                        enemyS,
+                        enemySighted,
+                        hitSource,
+                        hitev,
+                        hitev1,
+                        isDead,
+                        msgs,
+                        oi,
+                        t,
+                        targ
                       )
-                )
-          )
-      >>> ( first
-              (arr oiMessage >>> (iPre noEvent <<< identity))
-              >>> arr
-                ( \( msgs,
-                     ( currentHealth,
-                       enemy,
-                       enemyS,
-                       enemySighted,
-                       hitSource,
-                       hitev,
-                       hitev1,
-                       isDead,
-                       oi,
-                       t,
-                       targ
-                       )
-                     ) ->
-                      ( (isDead, msgs),
-                        ( currentHealth,
-                          enemy,
-                          enemyS,
-                          enemySighted,
-                          hitSource,
-                          hitev,
-                          hitev1,
-                          isDead,
-                          msgs,
-                          oi,
-                          t,
-                          targ
-                        )
-                      )
-                )
-          )
-      >>> ( first
-              ( arr
-                  ( \(isDead, msgs) ->
-                      (isEvent msgs && not isDead)
-                        && ( case getTargetPosition (fromEvent msgs) of
-                               Just _ -> True
-                               _ -> False
-                           )
-                  )
-                  >>> edge
-              )
-              >>> arr
-                ( \( msgReceived,
-                     ( currentHealth,
-                       enemy,
-                       enemyS,
-                       enemySighted,
-                       hitSource,
-                       hitev,
-                       hitev1,
-                       isDead,
-                       msgs,
-                       oi,
-                       t,
-                       targ
-                       )
-                     ) ->
-                      ( (isDead, msgs),
-                        ( currentHealth,
-                          enemy,
-                          enemyS,
-                          enemySighted,
-                          hitSource,
-                          hitev,
-                          hitev1,
-                          isDead,
-                          msgReceived,
-                          oi,
-                          t,
-                          targ
-                        )
-                      )
-                )
-          )
-      >>> ( first
-              ( arr
-                  ( \(isDead, msgs) ->
-                      (isEvent msgs && not isDead)
-                        && ( case getTargetPosition2 (fromEvent msgs) of
-                               Just _ -> True
-                               _ -> False
-                           )
-                  )
-                  >>> edge
-              )
-              >>> arr
-                ( \( respond2Attack,
-                     ( currentHealth,
-                       enemy,
-                       enemyS,
-                       enemySighted,
-                       hitSource,
-                       hitev,
-                       hitev1,
-                       isDead,
-                       msgReceived,
-                       oi,
-                       t,
-                       targ
-                       )
-                     ) ->
-                      ( (enemySighted, msgReceived),
-                        ( currentHealth,
-                          enemy,
-                          enemyS,
-                          hitSource,
-                          hitev,
-                          hitev1,
-                          isDead,
-                          oi,
-                          respond2Attack,
-                          t,
-                          targ
-                        )
-                      )
-                )
-          )
-      >>> ( first
-              ( arr
-                  (\(enemySighted, msgReceived) -> isNoEvent enemySighted && isNoEvent msgReceived)
-                  >>> (iPre noEvent <<< edge)
-              )
-              >>> arr
-                ( \( targetLost1,
-                     ( currentHealth,
-                       enemy,
-                       enemyS,
-                       hitSource,
-                       hitev,
-                       hitev1,
-                       isDead,
-                       oi,
-                       respond2Attack,
-                       t,
-                       targ
-                       )
-                     ) ->
-                      ( (enemyS, targetLost1),
-                        ( currentHealth,
-                          enemy,
-                          enemyS,
-                          hitSource,
-                          hitev,
-                          hitev1,
-                          isDead,
-                          oi,
-                          respond2Attack,
-                          t,
-                          targ,
-                          targetLost1
-                        )
-                      )
-                )
-          )
-      >>> ( first
-              ( arr
-                  ( \(enemyS, targetLost1) ->
-                      ( (),
-                        (enemyS `tag` constant noEvent)
-                          `lMerge` (targetLost1 `tag` repeatedly 0.5 (Event ()))
-                      )
-                  )
-                  >>> rSwitch (constant noEvent)
-              )
-              >>> loop
-                ( arr
-                    ( \( ( _,
-                           ( currentHealth,
-                             enemy,
-                             enemyS,
-                             hitSource,
-                             hitev,
-                             hitev1,
-                             isDead,
-                             oi,
-                             respond2Attack,
-                             t,
-                             targ,
-                             targetLost1
-                             )
-                           ),
-                         ~(angle, lEndEv, oldPos, uEndEv)
-                         ) ->
-                          ( ( angle,
-                              enemyS,
-                              hitev,
-                              lEndEv,
-                              oi,
-                              oldPos,
-                              respond2Attack,
-                              uEndEv
-                            ),
-                            ( currentHealth,
-                              enemy,
-                              hitSource,
-                              hitev,
-                              hitev1,
-                              isDead,
-                              t,
-                              targ,
-                              targetLost1
-                            )
-                          )
                     )
-                    >>> ( first
-                            ( arr
-                                ( \( angle,
-                                     enemyS,
-                                     hitev,
-                                     lEndEv,
-                                     oi,
-                                     oldPos,
-                                     respond2Attack,
-                                     uEndEv
-                                     ) ->
-                                      ( (oi, uEndEv, lEndEv),
-                                        (enemyS `tag` turnToFaceTarget (oldPos, angle))
-                                          `lMerge` respond2Attack
-                                          `tag` turnToFaceTarget (oldPos, angle)
-                                            `lMerge` hitev
-                                          `tag` playDead oldPos angle
-                                      )
-                                )
-                                >>> drSwitch (followWayPoints (x, y, z) waypoints)
-                            )
-                            >>> arr
-                              ( \( ( newPos,
-                                     oldPos,
-                                     angle,
-                                     ptch,
-                                     attack,
-                                     (upperIdx, lowerIdx)
-                                     ),
-                                   ( currentHealth,
-                                     enemy,
-                                     hitSource,
-                                     hitev,
-                                     hitev1,
-                                     isDead,
-                                     t,
-                                     targ,
-                                     targetLost1
-                                     )
-                                   ) ->
-                                    ( (t, upperIdx),
-                                      ( angle,
-                                        attack,
-                                        currentHealth,
-                                        enemy,
-                                        hitSource,
-                                        hitev,
-                                        hitev1,
-                                        isDead,
-                                        lowerIdx,
-                                        newPos,
-                                        oldPos,
-                                        ptch,
-                                        t,
-                                        targ,
-                                        targetLost1
-                                      )
-                                    )
-                              )
-                        )
-                    >>> ( first (updateAnimSF ua)
-                            >>> arr
-                              ( \( (uEndEv, upperstate),
-                                   ( angle,
-                                     attack,
-                                     currentHealth,
-                                     enemy,
-                                     hitSource,
-                                     hitev,
-                                     hitev1,
-                                     isDead,
-                                     lowerIdx,
-                                     newPos,
-                                     oldPos,
-                                     ptch,
-                                     t,
-                                     targ,
-                                     targetLost1
-                                     )
-                                   ) ->
-                                    ( (lowerIdx, t),
-                                      ( angle,
-                                        attack,
-                                        currentHealth,
-                                        enemy,
-                                        hitSource,
-                                        hitev,
-                                        hitev1,
-                                        isDead,
-                                        newPos,
-                                        oldPos,
-                                        ptch,
-                                        targ,
-                                        targetLost1,
-                                        uEndEv,
-                                        upperstate
-                                      )
-                                    )
-                              )
-                        )
-                    >>> ( first
-                            (arr (\(lowerIdx, t) -> (t, lowerIdx)) >>> updateAnimSF la)
-                            >>> arr
-                              ( \( (lEndEv, lowerstate),
-                                   ( angle,
-                                     attack,
-                                     currentHealth,
-                                     enemy,
-                                     hitSource,
-                                     hitev,
-                                     hitev1,
-                                     isDead,
-                                     newPos,
-                                     oldPos,
-                                     ptch,
-                                     targ,
-                                     targetLost1,
-                                     uEndEv,
-                                     upperstate
-                                     )
-                                   ) ->
-                                    ( ( angle,
-                                        attack,
-                                        currentHealth,
-                                        enemy,
-                                        hitSource,
-                                        hitev,
-                                        hitev1,
-                                        isDead,
-                                        lowerstate,
-                                        newPos,
-                                        oldPos,
-                                        ptch,
-                                        targ,
-                                        targetLost1,
-                                        upperstate
-                                      ),
-                                      (angle, lEndEv, oldPos, uEndEv)
-                                    )
-                              )
-                        )
-                )
-          )
-      >>> arr
-        ( \( angle,
-             attack,
-             currentHealth,
-             enemy,
-             hitSource,
-             hitev,
-             hitev1,
-             isDead,
-             lowerstate,
-             newPos,
-             oldPos,
-             ptch,
-             targ,
-             targetLost1,
-             upperstate
-             ) ->
-              let f = 1
-               in ObjOutput
-                    { ooObsObjState =
-                        OOSAICube
-                          { oosNewCubePos = newPos,
-                            oosOldCubePos = oldPos,
-                            oosCubeSize = size,
-                            oosCubeAngle = angle,
-                            oosCubePitch = ptch,
-                            upperAnim = upperstate,
-                            lowerAnim = lowerstate,
-                            health = currentHealth,
-                            target = targ,
-                            fade = f,
-                            modelName = modelname
-                          },
-                      ooKillReq = noEvent,
-                      ooSpawnReq =
-                        attack
-                          `tag` [projectile (getMuzzlePoint (oldPos, targ)) iD],
-                      ooSendMessage =
-                        hitev
-                          `tag` [(fromJust hitSource, (iD, EnemyDown)) | not isDead]
-                          `lMerge` targetLost1
-                            `tag` [(fst (head (fromEvent enemy)), (iD, PlayerLockedOn))]
-                          `lMerge` hitev1
-                            `tag` [(fromJust hitSource, (iD, PlayerLockedOn2))]
-                    }
+              )
         )
-  )
+    >>> ( first
+            ( arr
+                ( \(isDead, msgs) ->
+                    (isEvent msgs && not isDead)
+                      && ( case getTargetPosition (fromEvent msgs) of
+                             Just _ -> True
+                             _ -> False
+                         )
+                )
+                >>> edge
+            )
+            >>> arr
+              ( \( msgReceived,
+                   ( currentHealth,
+                     enemy,
+                     enemyS,
+                     enemySighted,
+                     hitSource,
+                     hitev,
+                     hitev1,
+                     isDead,
+                     msgs,
+                     oi,
+                     t,
+                     targ
+                     )
+                   ) ->
+                    ( (isDead, msgs),
+                      ( currentHealth,
+                        enemy,
+                        enemyS,
+                        enemySighted,
+                        hitSource,
+                        hitev,
+                        hitev1,
+                        isDead,
+                        msgReceived,
+                        oi,
+                        t,
+                        targ
+                      )
+                    )
+              )
+        )
+    >>> ( first
+            ( arr
+                ( \(isDead, msgs) ->
+                    (isEvent msgs && not isDead)
+                      && ( case getTargetPosition2 (fromEvent msgs) of
+                             Just _ -> True
+                             _ -> False
+                         )
+                )
+                >>> edge
+            )
+            >>> arr
+              ( \( respond2Attack,
+                   ( currentHealth,
+                     enemy,
+                     enemyS,
+                     enemySighted,
+                     hitSource,
+                     hitev,
+                     hitev1,
+                     isDead,
+                     msgReceived,
+                     oi,
+                     t,
+                     targ
+                     )
+                   ) ->
+                    ( (enemySighted, msgReceived),
+                      ( currentHealth,
+                        enemy,
+                        enemyS,
+                        hitSource,
+                        hitev,
+                        hitev1,
+                        isDead,
+                        oi,
+                        respond2Attack,
+                        t,
+                        targ
+                      )
+                    )
+              )
+        )
+    >>> ( first
+            ( arr
+                (\(enemySighted, msgReceived) -> isNoEvent enemySighted && isNoEvent msgReceived)
+                >>> (iPre noEvent <<< edge)
+            )
+            >>> arr
+              ( \( targetLost1,
+                   ( currentHealth,
+                     enemy,
+                     enemyS,
+                     hitSource,
+                     hitev,
+                     hitev1,
+                     isDead,
+                     oi,
+                     respond2Attack,
+                     t,
+                     targ
+                     )
+                   ) ->
+                    ( (enemyS, targetLost1),
+                      ( currentHealth,
+                        enemy,
+                        enemyS,
+                        hitSource,
+                        hitev,
+                        hitev1,
+                        isDead,
+                        oi,
+                        respond2Attack,
+                        t,
+                        targ,
+                        targetLost1
+                      )
+                    )
+              )
+        )
+    >>> ( first
+            ( arr
+                ( \(enemyS, targetLost1) ->
+                    ( (),
+                      (enemyS `tag` constant noEvent)
+                        `lMerge` (targetLost1 `tag` repeatedly 0.5 (Event ()))
+                    )
+                )
+                >>> rSwitch (constant noEvent)
+            )
+            >>> loop
+              ( arr
+                  ( \( ( _,
+                         ( currentHealth,
+                           enemy,
+                           enemyS,
+                           hitSource,
+                           hitev,
+                           hitev1,
+                           isDead,
+                           oi,
+                           respond2Attack,
+                           t,
+                           targ,
+                           targetLost1
+                           )
+                         ),
+                       ~(angle, lEndEv, oldPos, uEndEv)
+                       ) ->
+                        ( ( angle,
+                            enemyS,
+                            hitev,
+                            lEndEv,
+                            oi,
+                            oldPos,
+                            respond2Attack,
+                            uEndEv
+                          ),
+                          ( currentHealth,
+                            enemy,
+                            hitSource,
+                            hitev,
+                            hitev1,
+                            isDead,
+                            t,
+                            targ,
+                            targetLost1
+                          )
+                        )
+                  )
+                  >>> ( first
+                          ( arr
+                              ( \( angle,
+                                   enemyS,
+                                   hitev,
+                                   lEndEv,
+                                   oi,
+                                   oldPos,
+                                   respond2Attack,
+                                   uEndEv
+                                   ) ->
+                                    ( (oi, uEndEv, lEndEv),
+                                      (enemyS `tag` turnToFaceTarget (oldPos, angle))
+                                        `lMerge` respond2Attack
+                                        `tag` turnToFaceTarget (oldPos, angle)
+                                          `lMerge` hitev
+                                        `tag` playDead oldPos angle
+                                    )
+                              )
+                              >>> drSwitch (followWayPoints (x, y, z) waypoints)
+                          )
+                          >>> arr
+                            ( \( ( newPos,
+                                   oldPos,
+                                   angle,
+                                   ptch,
+                                   attack,
+                                   (upperIdx, lowerIdx)
+                                   ),
+                                 ( currentHealth,
+                                   enemy,
+                                   hitSource,
+                                   hitev,
+                                   hitev1,
+                                   isDead,
+                                   t,
+                                   targ,
+                                   targetLost1
+                                   )
+                                 ) ->
+                                  ( (t, upperIdx),
+                                    ( angle,
+                                      attack,
+                                      currentHealth,
+                                      enemy,
+                                      hitSource,
+                                      hitev,
+                                      hitev1,
+                                      isDead,
+                                      lowerIdx,
+                                      newPos,
+                                      oldPos,
+                                      ptch,
+                                      t,
+                                      targ,
+                                      targetLost1
+                                    )
+                                  )
+                            )
+                      )
+                  >>> ( first (updateAnimSF ua)
+                          >>> arr
+                            ( \( (uEndEv, upperstate),
+                                 ( angle,
+                                   attack,
+                                   currentHealth,
+                                   enemy,
+                                   hitSource,
+                                   hitev,
+                                   hitev1,
+                                   isDead,
+                                   lowerIdx,
+                                   newPos,
+                                   oldPos,
+                                   ptch,
+                                   t,
+                                   targ,
+                                   targetLost1
+                                   )
+                                 ) ->
+                                  ( (lowerIdx, t),
+                                    ( angle,
+                                      attack,
+                                      currentHealth,
+                                      enemy,
+                                      hitSource,
+                                      hitev,
+                                      hitev1,
+                                      isDead,
+                                      newPos,
+                                      oldPos,
+                                      ptch,
+                                      targ,
+                                      targetLost1,
+                                      uEndEv,
+                                      upperstate
+                                    )
+                                  )
+                            )
+                      )
+                  >>> ( first
+                          (arr (\(lowerIdx, t) -> (t, lowerIdx)) >>> updateAnimSF la)
+                          >>> arr
+                            ( \( (lEndEv, lowerstate),
+                                 ( angle,
+                                   attack,
+                                   currentHealth,
+                                   enemy,
+                                   hitSource,
+                                   hitev,
+                                   hitev1,
+                                   isDead,
+                                   newPos,
+                                   oldPos,
+                                   ptch,
+                                   targ,
+                                   targetLost1,
+                                   uEndEv,
+                                   upperstate
+                                   )
+                                 ) ->
+                                  ( ( angle,
+                                      attack,
+                                      currentHealth,
+                                      enemy,
+                                      hitSource,
+                                      hitev,
+                                      hitev1,
+                                      isDead,
+                                      lowerstate,
+                                      newPos,
+                                      oldPos,
+                                      ptch,
+                                      targ,
+                                      targetLost1,
+                                      upperstate
+                                    ),
+                                    (angle, lEndEv, oldPos, uEndEv)
+                                  )
+                            )
+                      )
+              )
+        )
+    >>> arr
+      ( \( angle,
+           attack,
+           currentHealth,
+           enemy,
+           hitSource,
+           hitev,
+           hitev1,
+           isDead,
+           lowerstate,
+           newPos,
+           oldPos,
+           ptch,
+           targ,
+           targetLost1,
+           upperstate
+           ) ->
+            let f = 1
+             in ObjOutput
+                  { ooObsObjState =
+                      OOSAICube
+                        { oosNewCubePos = newPos,
+                          oosOldCubePos = oldPos,
+                          oosCubeSize = size,
+                          oosCubeAngle = angle,
+                          oosCubePitch = ptch,
+                          upperAnim = upperstate,
+                          lowerAnim = lowerstate,
+                          health = currentHealth,
+                          target = targ,
+                          fade = f,
+                          modelName = modelname
+                        },
+                    ooKillReq = noEvent,
+                    ooSpawnReq =
+                      attack
+                        `tag` [projectile (getMuzzlePoint (oldPos, targ)) iD],
+                    ooSendMessage =
+                      hitev
+                        `tag` [(fromJust hitSource, (iD, EnemyDown)) | not isDead]
+                        `lMerge` targetLost1
+                          `tag` [(fst (head (fromEvent enemy)), (iD, PlayerLockedOn))]
+                        `lMerge` hitev1
+                          `tag` [(fromJust hitSource, (iD, PlayerLockedOn2))]
+                  }
+      )
 
 getFire :: ObsObjState -> Maybe ILKey
 getFire obj
