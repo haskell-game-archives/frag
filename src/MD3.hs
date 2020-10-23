@@ -1131,12 +1131,13 @@ matchPrefix :: String -> MD3Animation -> Bool
 matchPrefix prefix anim = prefix == head (words (fmap (replace' ['_']) (animName anim)))
 
 readLines :: Handle -> IO [String]
-readLines handle = hIsEOF handle >>= \case
-  False -> do
-    lne <- hGetLine handle
-    lnes <- readLines handle
-    return (lne : lnes)
-  _ -> return []
+readLines handle =
+  hIsEOF handle >>= \case
+    False -> do
+      lne <- hGetLine handle
+      lnes <- readLines handle
+      return (lne : lnes)
+    _ -> return []
 
 -------------------------------------------------------------------------------
 

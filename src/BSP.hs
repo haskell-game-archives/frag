@@ -294,9 +294,9 @@ renderLeaves ::
   Frustum -> BitSet -> (Int -> IO Bool) -> BSPMap -> BSPLeaf -> IO ()
 renderLeaves frstm bitSet func mp leaf = do
   clusterVisible <- func (cluster leaf)
-  when clusterVisible
-    $ when (boxInFrustum frstm (leafMin leaf) (leafMax leaf))
-    $ renderFaces bitSet mp (leafFaces leaf)
+  when clusterVisible $
+    when (boxInFrustum frstm (leafMin leaf) (leafMax leaf)) $
+      renderFaces bitSet mp (leafFaces leaf)
 
 -- is an object visible
 isObjectVisible :: BSPMap -> Vec3 -> Vec3 -> IO Bool
@@ -996,9 +996,9 @@ readIndices handle lumps = do
 getAndPeek :: (Storable a, Typeable a) => Handle -> Ptr a -> a -> IO a
 getAndPeek handle buf be = do
   bytesRead <- hGetBuf handle buf (sizeOf be)
-  when (bytesRead /= sizeOf be)
-    $ ioError
-    $ mkIOError eofErrorType "hGetBufFully" (Just handle) Nothing
+  when (bytesRead /= sizeOf be) $
+    ioError $
+      mkIOError eofErrorType "hGetBufFully" (Just handle) Nothing
   peek buf
 
 getAndPeeks ::
