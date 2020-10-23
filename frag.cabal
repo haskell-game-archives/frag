@@ -24,9 +24,6 @@ data-files:
   tga/**/*.tga
   tga/**/*.cfg
   tga/**/*.shader
-  tga/models/players/klesk/animation.cfg
-  -- tga/models/players/klesk/animation.cfg
-  -- tga/models/weapons/railgun.shader
 
 common common
   build-depends:
