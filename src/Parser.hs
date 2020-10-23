@@ -47,19 +47,20 @@ data GameInput = GameInput
   }
 
 parseWinInput :: SF (WinInput, WinInput) GameInput
-parseWinInput = (wiToCmd <<< arr fst)
-  &&& (wiToPDS <<< arr snd)
-  &&& (wiToKs <<< arr fst)
-  &&& gDt
-  >>^ \((cmdStr, cmd), (pds, (ks, (dt, t)))) ->
-    GameInput
-      { giCmdStr = cmdStr,
-        giCmd = cmd,
-        giPDS = pds,
-        giKS = ks,
-        giDt = dt,
-        giT = t
-      }
+parseWinInput =
+  (wiToCmd <<< arr fst)
+    &&& (wiToPDS <<< arr snd)
+    &&& (wiToKs <<< arr fst)
+    &&& gDt
+    >>^ \((cmdStr, cmd), (pds, (ks, (dt, t)))) ->
+      GameInput
+        { giCmdStr = cmdStr,
+          giCmd = cmd,
+          giPDS = pds,
+          giKS = ks,
+          giDt = dt,
+          giT = t
+        }
 
 -- All event sources below are defined such that they will NOT occur at local
 -- time 0 (immediately after a switch). Sometimes explicitly using a "notYet".

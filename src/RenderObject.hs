@@ -5,7 +5,9 @@ where
 
 import BSP
 import Camera
-import Data.HashTable
+import Control.Monad
+import Data.HashTable.IO (BasicHashTable)
+import qualified Data.HashTable.IO as HashTable
 import Data.IORef
 import Data.Maybe
 import Frustum
@@ -16,7 +18,7 @@ import Matrix
 import Object
 import Visibility
 
-renderObjects :: IORef Camera -> HashTable String Model -> Frustum -> BSPMap -> ObsObjState -> IO ()
+renderObjects :: IORef Camera -> BasicHashTable String Model -> Frustum -> BSPMap -> ObsObjState -> IO ()
 renderObjects camRef models frust map oos
   | isRay oos = renderRay oos
   | isProjectile oos = renderProjectile oos
@@ -79,7 +81,7 @@ renderProjectile OOSProjectile {projectileOldPos = (x, y, z)} = do
 
 renderEnemy ::
   IORef Camera ->
-  HashTable String Model ->
+  BasicHashTable String Model ->
   Frustum ->
   BSPMap ->
   ObsObjState ->
@@ -117,13 +119,13 @@ renderEnemy
             unsafePreservingMatrix $ do
               lineWidth $= 5.0
               translate (Vector3 x y z)
-              Just model <- Data.HashTable.lookup models name
+              Just model <- HashTable.lookup models name
               writeIORef
                 (pitch model)
                 ( Just $
                     do
-                      cullFace $= Nothing cullFace
-                        $= Just Front rotate p (Vector3 0 1 0)
+                      cullFace $= Nothing
+                      -- cullFace $= Just Front rotate p (Vector3 0 1 0)
                 )
               writeIORef (lowerState model) la
               writeIORef (upperState model) ua

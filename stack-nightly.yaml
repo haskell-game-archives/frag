@@ -1,5 +1,3 @@
-resolver: nightly-2020-06-22 # ghc-8.10.1
-packages:
-- .
+resolver: nightly-2020-10-23 # ghc-8.10.2
 extra-deps:
 - Yampa-0.13.1@sha256:4612a2646c27bcd3ac55c90dbc34249303e28aa5b3bc3e0c6fa9ce58b889843c,5436

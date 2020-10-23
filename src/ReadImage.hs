@@ -49,9 +49,9 @@ readGLsizei handle =
 hGetBufFully :: Handle -> Ptr a -> Int -> IO ()
 hGetBufFully handle ptr numBytes = do
   bytesRead <- hGetBuf handle ptr numBytes
-  when (bytesRead /= numBytes)
-    $ ioError
-    $ mkIOError eofErrorType "hGetBufFully" (Just handle) Nothing
+  when (bytesRead /= numBytes) $
+    ioError $
+      mkIOError eofErrorType "hGetBufFully" (Just handle) Nothing
 
 -- Closing a file is nice, even when an error occurs during reading.
 withBinaryFile :: FilePath -> (Handle -> IO a) -> IO a
