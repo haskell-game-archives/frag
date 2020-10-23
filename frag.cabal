@@ -75,4 +75,4 @@ executable frag
   import:        common
   main-is:       app/Main.hs
   build-depends: frag
-  ghc-options:   -O2 -optc-O2
+  ghc-options:   -O2
