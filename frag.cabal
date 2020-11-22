@@ -14,16 +14,16 @@ homepage:      http://haskell.org/haskellwiki/Frag
 build-type:    Simple
 tested-with:   GHC ==8.6.5 || ==8.8.4 || ==8.10.2
 data-files:
-  README.md
-  README-leveleg
   leveleg.bsp
   leveleg.cfg
   leveleg.med
-  tga/**/*.skin
-  tga/**/*.md3
-  tga/**/*.tga
+  README-leveleg
+  README.md
   tga/**/*.cfg
+  tga/**/*.md3
   tga/**/*.shader
+  tga/**/*.skin
+  tga/**/*.tga
 
 common common
   build-depends:
