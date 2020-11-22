@@ -18,6 +18,7 @@ jobs:
       matrix:
         os: [ubuntu-18.04, macos-10.15]
         resolver: ["lts-14", "lts-16", "nightly"]
+        cache-version: ["2020-11-22"]
 
     steps:
     - uses: actions/checkout@v2
@@ -32,6 +33,19 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y freeglut3-dev
+
+    # See: https://github.com/actions/cache/issues/445
+    - name: Install GNU tar
+      if: runner.os == 'macOS'
+      run: |
+        brew install gnu-tar
+        echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
+
+    - name: Cache ~/.stack
+      uses: actions/cache@v2
+      with:
+        path: ~/.stack
+        key: ${{ runner.os }}-${{ matrix.resolver }}-${{ matrix.cache-version }}-stack
 
     - name: Install dependencies
       env:
