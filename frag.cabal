@@ -12,7 +12,7 @@ author:        Mun Hon Cheong
 maintainer:    dons@galois.com
 homepage:      http://haskell.org/haskellwiki/Frag
 build-type:    Simple
-tested-with:   GHC ==8.6.5 || ==8.8.4 || ==8.10.2
+tested-with:   GHC ==8.6.5 || ==8.8.4 || ==8.10.5 || ==9.0.1
 data-files:
   leveleg.bsp
   leveleg.cfg
@@ -27,7 +27,7 @@ data-files:
 
 common common
   build-depends:
-    , base        >=4.12 && <4.15
+    , base        >=4.12 && <4.16
     , deepseq     ^>=1.4
     , GLUT        ^>=2.7
     , hashtables  ^>=1.2

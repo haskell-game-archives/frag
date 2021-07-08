@@ -2,11 +2,8 @@ name: format
 
 on:
   push:
-    branches:
-      - 'master'
+    branches: [master]
   pull_request:
-    branches:
-      - '*'
   schedule:
     - cron: "00 15 * * *"
 
@@ -15,16 +12,21 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
     - uses: actions/checkout@v2
-    - uses: mrkkrp/ormolu-action@v1
+    - uses: mrkkrp/ormolu-action@v2
 
   cabal-fmt:
     runs-on: ubuntu-18.04
     strategy:
       matrix:
-        cache-version: ["2020-11-22"]
+        cache-version: ["2021-07-08"]
 
     steps:
     - uses: actions/checkout@v2
+    - uses: haskell/actions/setup@v1
+      with:
+        ghc-version: "8.10.5"
+        cabal-version: "3.4"
+        
     - uses: actions/cache@v2
       name: Cache ~/.cabal/store
       with:
