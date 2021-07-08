@@ -2,6 +2,7 @@
 [![cabal](https://github.com/haskell-game-archives/frag/workflows/cabal/badge.svg)](https://github.com/haskell-game-archives/frag/actions?query=workflow%3Acabal)
 [![lint](https://github.com/haskell-game-archives/frag/workflows/lint/badge.svg)](https://github.com/haskell-game-archives/frag/actions?query=workflow%3Alint)
 [![format](https://github.com/haskell-game-archives/frag/workflows/format/badge.svg)](https://github.com/haskell-game-archives/frag/actions?query=workflow%3Aformat)
+[![dependencies check](https://github.com/haskell-game-archives/frag/actions/workflows/outdated.yml/badge.svg)](https://github.com/haskell-game-archives/frag/actions/workflows/outdated.yml)
 
 ![GIF Preview](frag.gif)
 
